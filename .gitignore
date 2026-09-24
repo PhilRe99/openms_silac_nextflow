@@ -1,0 +1,18 @@
+# Nextflow
+.nextflow/
+.nextflow.log*
+work/
+
+# Pipeline outputs
+results/
+
+# IDE
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
