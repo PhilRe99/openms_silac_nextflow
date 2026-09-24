@@ -1,6 +1,8 @@
 process SDRF_PARSING {
      
     tag "${sdrf.simpleName}"
+    
+    container 'openms-silac/sdrf-pipelines:dea8ba9'
 
     input:
     path sdrf
