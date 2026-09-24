@@ -1,6 +1,6 @@
 process SDRF_PARSING {
      
-    tag "${sdrf.simplename}"
+    tag "${sdrf.simpleName}"
 
     input:
     path sdrf

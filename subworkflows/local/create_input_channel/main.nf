@@ -1,4 +1,4 @@
-include { SDRF_PARSING }       from '../modules/local/sdrf_parsing/main'
+include { SDRF_PARSING } from '../../../modules/local/sdrf_parsing/main.nf'
 
 workflow CREATE_INPUT_CHANNEL {
 
@@ -27,4 +27,6 @@ workflow CREATE_INPUT_CHANNEL {
 
     emit:
     runs = ch_runs
+    openms = SDRF_PARSING.out.ch_sdrf_config_file
+    experimental_design = SDRF_PARSING.out.ch_expdesign
 }
