@@ -23,7 +23,7 @@ workflow CREATE_INPUT_CHANNEL {
                 label_type: row.Label,
                 enzyme: row.Enzyme,
                 fixed_modifications: row.FixedModifications,
-                base_variable_modifications: row.VariableModifications,
+                variable_modifications: row.VariableModifications,
                 precursor_mass_tolerance: row.PrecursorMassTolerance,
                 precursor_mass_tolerance_unit: row.PrecursorMassToleranceUnit,
                 fragment_mass_tolerance: row.FragmentMassTolerance,

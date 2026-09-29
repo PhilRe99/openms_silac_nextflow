@@ -17,8 +17,8 @@ workflow SILAC {
 
     RESOLVE_SILAC_CONFIG(
         CREATE_INPUT_CHANNEL.out.runs,
-        CREATE_INPUT_CHANNEL.out.openms,
-        CREATE_INPUT_CHANNEL.out.experimental_design
+        CREATE_INPUT_CHANNEL.out.openms.first(),
+        CREATE_INPUT_CHANNEL.out.experimental_design.first()
     )
 
     RESOLVE_SILAC_CONFIG.out.runs
@@ -32,7 +32,7 @@ workflow SILAC {
                 binary_modifications: cfg.binary_modifications,
                 silac_labels: cfg.ffm_labels
             ]
-            tuple(resolved_meta, mzml)
+            tuple(final_meta, mzml)
         }
         .set { resolved_runs }
 
@@ -52,7 +52,7 @@ workflow SILAC {
 
     PEPTIDE_INDEXER(
         COMET.out.runs,
-        GENERATE_DECOY_DATABASE.out.database
+        GENERATE_DECOY_DATABASE.out.database.first()
     )
 
     PSM_FEATURE_EXTRACTOR(
@@ -60,7 +60,7 @@ workflow SILAC {
     )
 
     PERCOLATOR(
-    PSM_FEATURE_EXTRACTOR.out.runs,
+        PSM_FEATURE_EXTRACTOR.out.runs
     )
 
     PERCOLATOR.out.runs.view()
