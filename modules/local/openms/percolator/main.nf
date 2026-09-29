@@ -3,13 +3,12 @@ process PERCOLATOR {
     tag "${meta.id}"
 
     input:
-    tuple val(meta), path(mzml), path(idxml), path(config)
+    tuple val(meta), path(mzml), path(idxml)
 
     output:
     tuple val(meta),
         path(mzml),
         path("${meta.id}.percolator.idXML"),
-        path(config),
         emit: runs
 
     script:
@@ -20,7 +19,7 @@ process PERCOLATOR {
         -use_subprocess true \
         -percolator_executable /usr/share/OpenMS/THIRDPARTY/Percolator/percolator \
         -score_type pep \
-        -score:fdr ${params.psm_fdr}
+        -score:fdr ${params.psm_fdr} \
         -threads ${task.cpus}
     """
 }

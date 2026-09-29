@@ -2,11 +2,11 @@ process PEPTIDE_INDEXER {
     tag "${meta.id}"
 
     input:
-    tuple val(meta), path(mzml), path(idxml), path(config)
+    tuple val(meta), path(mzml), path(idxml)
     path(database)
 
     output:
-    tuple val(meta), path(mzml), path("${meta.id}.comet.indexed.idXML"), path(config), emit: runs
+    tuple val(meta), path(mzml), path("${meta.id}.comet.indexed.idXML"), emit: runs
     
     script:
     """
@@ -15,7 +15,7 @@ process PEPTIDE_INDEXER {
         -fasta "${database}" \
         -out "${meta.id}.comet.indexed.idXML" \
         -decoy_string DECOY_ \
-        -decoy_string_position prefix
+        -decoy_string_position prefix \
         -threads ${task.cpus}
     """
 }

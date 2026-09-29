@@ -18,7 +18,17 @@ workflow CREATE_INPUT_CHANNEL {
             def mzml = file("${params.mzml_dir}/${row.Filename}")
 
             def meta = [
-                id: row.Filename.replaceFirst(/\.mzML$/, '')
+                id: row.Filename.replaceFirst(/\.mzML$/, ''),
+                acquisition_method: row['Proteomics Data Acquisition Method'],
+                label_type: row.Label,
+                enzyme: row.Enzyme,
+                fixed_modifications: row.FixedModifications,
+                base_variable_modifications: row.VariableModifications,
+                precursor_mass_tolerance: row.PrecursorMassTolerance,
+                precursor_mass_tolerance_unit: row.PrecursorMassToleranceUnit,
+                fragment_mass_tolerance: row.FragmentMassTolerance,
+                fragment_mass_tolerance_unit: row.FragmentMassToleranceUnit,
+                dissociation_method: row.DissociationMethod
             ]
 
             [meta, mzml]

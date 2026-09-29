@@ -21,8 +21,23 @@ workflow SILAC {
         CREATE_INPUT_CHANNEL.out.experimental_design
     )
 
+    RESOLVE_SILAC_CONFIG.out.runs
+        .map { meta, mzml, config ->
+            def cfg = new groovy.json.JsonSlurperClassic().parse(config.toFile())
+            def resolved_meta = meta + [
+                labels: cfg.labels,
+                label_channels: cfg.label_channels,
+                label_modifications: cfg.label_modifications,
+                variable_modifications: cfg.variable_modifications,
+                binary_modifications: cfg.binary_modifications,
+                silac_labels: cfg.ffm_labels
+            ]
+            tuple(resolved_meta, mzml)
+        }
+        .set { resolved_runs }
+
     OPENMS_PEAK_PICKER(
-        RESOLVE_SILAC_CONFIG.out.runs
+        resolved_runs
     )
 
     GENERATE_DECOY_DATABASE(

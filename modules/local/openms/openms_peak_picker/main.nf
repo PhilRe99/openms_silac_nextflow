@@ -3,10 +3,10 @@ process OPENMS_PEAK_PICKER {
     tag "${meta.id}"
 
     input:
-    tuple val(meta), path(mzml), path(config)
+    tuple val(meta), path(mzml)
 
     output:
-    tuple val(meta), path("prepared/${mzml.name}"), path(config), emit: runs
+    tuple val(meta), path("prepared/${mzml.name}"), emit: runs
 
     script:
     """

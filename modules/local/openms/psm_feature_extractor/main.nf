@@ -3,12 +3,11 @@ process PSM_FEATURE_EXTRACTOR {
     tag "${meta.id}"
 
     input:
-    tuple val(meta), path(mzml), path(idxml), path(config)
+    tuple val(meta), path(mzml), path(idxml)
 
     output:
     tuple val(meta), path(mzml), 
-        path("${meta.id}.comet.features.idXML"),
-        path(config), emit: runs
+        path("${meta.id}.comet.features.idXML"), emit: runs
 
     
     script:
