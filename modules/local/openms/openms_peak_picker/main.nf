@@ -1,4 +1,4 @@
-process PEAK_PICKER {
+process OPENMS_PEAK_PICKER {
 
     tag "${meta.id}"
 

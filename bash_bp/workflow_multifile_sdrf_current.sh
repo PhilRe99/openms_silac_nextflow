@@ -202,7 +202,7 @@ echo
 MS1LabeledWorkflow \
     -in "${ALL_MZMLS[@]}" \
     -ids "${ALL_IDS[@]}" \
-    -labels "[][Lys4,Arg6][Lys8,Arg10]" \
+    -labels "${MS1_LABELS}" \
     -design "$EXPERIMENTAL_DESIGN" \
     -fasta "$TARGET_DECOY_DB" \
     -out "$RESULTS_DIR/experiment.mzTab" \

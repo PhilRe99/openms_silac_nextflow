@@ -18,6 +18,5 @@ process RESOLVE_SILAC_CONFIG {
         "${mzml}" \
         "silac_config_${meta.id}.json"
     """
-
-
+    
 }
