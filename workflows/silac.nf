@@ -6,6 +6,7 @@ include { COMET } from '../modules/local/openms/comet/main'
 include { PEPTIDE_INDEXER } from '../modules/local/openms/peptide_indexer/main'
 include { PSM_FEATURE_EXTRACTOR } from '../modules/local/openms/psm_feature_extractor/main'
 include { PERCOLATOR } from '../modules/local/openms/percolator/main'
+include { MS1_LABELED_WORKFLOW } from '../modules/local/openms/ms1_labeled_workflow/main'
 
 workflow SILAC {
 
@@ -17,14 +18,14 @@ workflow SILAC {
 
     RESOLVE_SILAC_CONFIG(
         CREATE_INPUT_CHANNEL.out.runs,
-        CREATE_INPUT_CHANNEL.out.openms.first(),
-        CREATE_INPUT_CHANNEL.out.experimental_design.first()
+        CREATE_INPUT_CHANNEL.out.openms,
+        CREATE_INPUT_CHANNEL.out.experimental_design
     )
 
     RESOLVE_SILAC_CONFIG.out.runs
         .map { meta, mzml, config ->
             def cfg = new groovy.json.JsonSlurperClassic().parse(config.toFile())
-            def resolved_meta = meta + [
+            def final_meta = meta + [
                 labels: cfg.labels,
                 label_channels: cfg.label_channels,
                 label_modifications: cfg.label_modifications,
@@ -52,7 +53,7 @@ workflow SILAC {
 
     PEPTIDE_INDEXER(
         COMET.out.runs,
-        GENERATE_DECOY_DATABASE.out.database.first()
+        GENERATE_DECOY_DATABASE.out.database
     )
 
     PSM_FEATURE_EXTRACTOR(
@@ -63,6 +64,28 @@ workflow SILAC {
         PSM_FEATURE_EXTRACTOR.out.runs
     )
 
-    PERCOLATOR.out.runs.view()
+    PERCOLATOR.out.runs
+        .collect(flat: false)
+        .map { runs ->
+            def chemistries = runs.collect { run -> run[0].silac_labels }.unique()
+            assert chemistries.size() == 1 : "Expected one SILAC chemistry, found ${chemistries}"
+            tuple(chemistries[0], runs)
+        }
+        .set { ms1_runs }
+    
+    ms1_runs
+    .map { labels, runs ->
+        tuple(
+            labels,
+            runs.collect { run -> run[1] },  // mzMLs
+            runs.collect { run -> run[2] }   // matching idXMLs
+        )
+    }
+    .set { ms1_input }
 
+    MS1_LABELED_WORKFLOW(
+    ms1_input,
+    CREATE_INPUT_CHANNEL.out.experimental_design,
+    GENERATE_DECOY_DATABASE.out.database
+    )
 }
