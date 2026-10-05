@@ -2,6 +2,8 @@ process RESOLVE_SILAC_CONFIG {
 
     tag "${meta.id}"
 
+    container 'python:3.11-slim'
+
     input:
     tuple val(meta), path(mzml)
     path openms_config

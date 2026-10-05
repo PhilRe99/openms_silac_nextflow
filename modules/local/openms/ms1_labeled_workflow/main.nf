@@ -2,6 +2,8 @@ process MS1_LABELED_WORKFLOW {
 
     publishDir "${params.outdir}/${file(params.input).name.replaceFirst(/\.sdrf\.tsv$/, '')}", mode: 'copy'
 
+    container params.openms_container
+
     input:
     tuple val(labels), path(mzmls), path(idxmls)
     path design

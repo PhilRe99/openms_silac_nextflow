@@ -2,6 +2,8 @@ process OPENMS_PEAK_PICKER {
 
     tag "${meta.id}"
 
+    container params.openms_container
+
     input:
     tuple val(meta), path(mzml)
 

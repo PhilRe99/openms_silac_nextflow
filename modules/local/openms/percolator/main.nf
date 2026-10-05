@@ -2,6 +2,8 @@ process PERCOLATOR {
 
     tag "${meta.id}"
 
+    container params.openms_container
+
     input:
     tuple val(meta), path(mzml), path(idxml)
 
@@ -17,7 +19,7 @@ process PERCOLATOR {
         -in "${idxml}" \
         -out "${meta.id}.percolator.idXML" \
         -use_subprocess true \
-        -percolator_executable /usr/share/OpenMS/THIRDPARTY/Percolator/percolator \
+        -percolator_executable percolator \
         -score_type pep \
         -score:fdr ${params.psm_fdr} \
         -threads ${task.cpus}

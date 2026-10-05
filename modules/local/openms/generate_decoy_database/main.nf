@@ -1,6 +1,8 @@
 process GENERATE_DECOY_DATABASE {
 
     tag "${fasta.baseName}"
+    
+    container params.openms_container
 
     input:
     path fasta

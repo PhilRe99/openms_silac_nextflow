@@ -2,6 +2,8 @@ process COMET {
 
     tag "${meta.id}"
 
+    container params.openms_container
+
     input: 
     tuple val(meta), path(mzml), path(database)
 
@@ -24,7 +26,7 @@ process COMET {
         -in "${mzml}" \
         -database "${database}" \
         -out "${meta.id}.comet.idXML" \
-        -comet_executable /usr/share/OpenMS/THIRDPARTY/Comet/comet.exe \
+        -comet_executable comet.exe \
         -enzyme '${meta.enzyme.toString().replace("'", "'\"'\"'")}' \
         -missed_cleavages 2 \
         -fragment_mass_tolerance '${meta.fragment_mass_tolerance.toString().replace("'", "'\"'\"'")}' \
@@ -42,4 +44,3 @@ process COMET {
     """
 
 }
-

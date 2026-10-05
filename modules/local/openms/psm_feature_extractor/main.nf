@@ -2,6 +2,8 @@ process PSM_FEATURE_EXTRACTOR {
 
     tag "${meta.id}"
 
+    container params.openms_container
+
     input:
     tuple val(meta), path(mzml), path(idxml)
 

@@ -1,6 +1,9 @@
 process PEPTIDE_INDEXER {
+
     tag "${meta.id}"
 
+    container params.openms_container
+    
     input:
     tuple val(meta), path(mzml), path(idxml)
     path(database)
