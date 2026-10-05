@@ -13,8 +13,9 @@ process MS1_LABELED_WORKFLOW {
     path "experiment.mzTab", emit: mztab
     path "experiment.consensusXML", emit: consensus
     
-
     script:
+
+    def args = task.ext.args ?: ''
 
     def mzmlArgs = mzmls.collect { item ->
         "'" + item.toString().replace("'", "'\"'\"'") + "'"
@@ -25,20 +26,14 @@ process MS1_LABELED_WORKFLOW {
 
     """
     MS1LabeledWorkflow \
-    -in ${mzmlArgs} \
-    -ids ${idxmlArgs} \
-    -labels "${labels}" \
-    -design "${design}" \
-    -fasta "${database}" \
-    -max_nr_labelled_aas 2 \
-    -proteinFDR 0.01 \
-    -picked_proteinFDR true \
-    -ProteinQuantification:fractions:aggregate sum \
-    -ratios:reference_channel 1 \
-    -ratios:min_ratio_count 2 \
-    -ratios:normalize false \
-    -out experiment.mzTab \
-    -out_cxml experiment.consensusXML \
-    -threads ${task.cpus}
+        -in ${mzmlArgs} \
+        -ids ${idxmlArgs} \
+        -labels "${labels}" \
+        -design "${design}" \
+        -fasta "${database}" \
+        ${args} \
+        -out experiment.mzTab \
+        -out_cxml experiment.consensusXML \
+        -threads ${task.cpus}
     """
 }

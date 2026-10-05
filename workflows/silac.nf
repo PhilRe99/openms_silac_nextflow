@@ -20,7 +20,8 @@ workflow SILAC {
     RESOLVE_SILAC_CONFIG(
         CREATE_INPUT_CHANNEL.out.runs,
         CREATE_INPUT_CHANNEL.out.openms,
-        CREATE_INPUT_CHANNEL.out.experimental_design
+        CREATE_INPUT_CHANNEL.out.experimental_design,
+        Channel.value(file(params.silac_chemistry, checkIfExists: true))
     )
 
     //expanding meta for the needed additional info
