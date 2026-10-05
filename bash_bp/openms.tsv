@@ -1,0 +1,4 @@
+URI	Filename	FixedModifications	VariableModifications	Proteomics Data Acquisition Method	Label	PrecursorMassTolerance	PrecursorMassToleranceUnit	FragmentMassTolerance	FragmentMassToleranceUnit	DissociationMethod	Enzyme
+Chris_Ecoli_4-1.mzML	Chris_Ecoli_4-1.mzML	Carbamidomethyl (C)	Acetyl (Protein N-term),Deamidated (N),Deamidated (Q),Oxidation (M)	Data-dependent acquisition	SILAC	10	ppm	0.8	Da	BEAM-TYPE COLLISION-INDUCED DISSOCIATION	Trypsin
+Chris_Ecoli_1-1.mzML	Chris_Ecoli_1-1.mzML	Carbamidomethyl (C)	Acetyl (Protein N-term),Deamidated (N),Deamidated (Q),Oxidation (M)	Data-dependent acquisition	SILAC	10	ppm	0.8	Da	BEAM-TYPE COLLISION-INDUCED DISSOCIATION	Trypsin
+Chris_Ecoli_1-2-4.mzML	Chris_Ecoli_1-2-4.mzML	Carbamidomethyl (C)	Acetyl (Protein N-term),Deamidated (N),Deamidated (Q),Oxidation (M)	Data-dependent acquisition	SILAC	10	ppm	0.8	Da	BEAM-TYPE COLLISION-INDUCED DISSOCIATION	Trypsin

@@ -16,26 +16,23 @@ workflow SILAC {
         Channel.value(file(params.input))
     )
 
+    //extracting silac specific info from metadatat into config file
     RESOLVE_SILAC_CONFIG(
         CREATE_INPUT_CHANNEL.out.runs,
         CREATE_INPUT_CHANNEL.out.openms,
         CREATE_INPUT_CHANNEL.out.experimental_design
     )
 
-    RESOLVE_SILAC_CONFIG.out.runs
-        .map { meta, mzml, config ->
-            def cfg = new groovy.json.JsonSlurperClassic().parse(config.toFile())
-            def final_meta = meta + [
-                labels: cfg.labels,
-                label_channels: cfg.label_channels,
-                label_modifications: cfg.label_modifications,
-                variable_modifications: cfg.variable_modifications,
-                binary_modifications: cfg.binary_modifications,
-                silac_labels: cfg.ffm_labels
-            ]
-            tuple(final_meta, mzml)
-        }
-        .set { resolved_runs }
+    //expanding meta for the needed additional info
+    RESOLVE_SILAC_CONFIG.out.runs.map { meta, mzml, config ->
+        def cfg = new groovy.json.JsonSlurperClassic().parse(config.toFile())
+        def final_meta = meta + [
+            variable_modifications: cfg.variable_modifications,
+            binary_modifications: cfg.binary_modifications,
+            silac_labels: cfg.ffm_labels
+        ]
+        tuple(final_meta, mzml)
+    }.set { resolved_runs }
 
     OPENMS_PEAK_PICKER(
         resolved_runs
@@ -64,24 +61,25 @@ workflow SILAC {
         PSM_FEATURE_EXTRACTOR.out.runs
     )
 
-    PERCOLATOR.out.runs
-        .collect(flat: false)
-        .map { runs ->
-            def chemistries = runs.collect { run -> run[0].silac_labels }.unique()
-            assert chemistries.size() == 1 : "Expected one SILAC chemistry, found ${chemistries}"
-            tuple(chemistries[0], runs)
-        }
-        .set { ms1_runs }
+    //pooling for MS1labeledworkflow
+    //only accepts one shared chemistry for now (no mixed plex)
+    PERCOLATOR.out.runs.collect(flat: false).map { runs ->
+        def chemistries = runs.collect { run -> run[0].silac_labels }.unique()
+        assert chemistries.size() == 1 : "Expected one SILAC chemistry, found ${chemistries}"
+        tuple(chemistries[0], runs)
+    }.set { ms1_runs }
     
-    ms1_runs
-    .map { labels, runs ->
+
+    //restructuring collected runs into form the MS1 workflow needs
+    //run[1] = mzML
+    //run[2] = idXML
+    ms1_runs.map { labels, runs ->
         tuple(
             labels,
-            runs.collect { run -> run[1] },  // mzMLs
-            runs.collect { run -> run[2] }   // matching idXMLs
+            runs.collect { run -> run[1] },
+            runs.collect { run -> run[2] }
         )
-    }
-    .set { ms1_input }
+    }.set { ms1_input }
 
     MS1_LABELED_WORKFLOW(
     ms1_input,

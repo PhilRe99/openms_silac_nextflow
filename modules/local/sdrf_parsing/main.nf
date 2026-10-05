@@ -4,6 +4,8 @@ process SDRF_PARSING {
     
     container 'openms-silac/sdrf-pipelines:dea8ba9'
 
+    publishDir "${params.outdir}/${file(params.input).name.replaceFirst(/\.sdrf\.tsv$/, '')}", mode: 'copy'
+
     input:
     path sdrf
 

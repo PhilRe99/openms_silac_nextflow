@@ -3,12 +3,15 @@ import json
 import sys
 from pathlib import Path
 
+
+#needs to be moved into nextflow.config
 CHANNEL_CHEMISTRY = {
     "light": [],
     "medium": ["Lys4", "Arg6"],
     "heavy": ["Lys8", "Arg10"]
 }
 
+#needs to be moved into nextflow.config
 #variable modification format required for comet
 LABEL_MODIFICATIONS = {
     "Lys4": "Label:2H(4) (K)",

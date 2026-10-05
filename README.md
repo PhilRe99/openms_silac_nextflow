@@ -9,61 +9,51 @@ complete SILAC analysis pipeline.
 
 ## Current scope
 
-The current Phase 1 workflow:
-
-1. validates an SDRF file;
-2. converts it to `openms.tsv` and `experimental_design.tsv` with
-   `sdrf-pipelines`;
-3. creates one `[meta, mzML]` Nextflow record per physical input file; and
-4. keeps the OpenMS configuration and experimental design available as
-   separate outputs for later stages.
-
-Identification, spectrum preparation, MS1 quantification, and label-chemistry
-cohorting have not yet been implemented in Nextflow.
+The workflow parses an SDRF, resolves the SILAC configuration for each mzML,
+performs OpenMS identification, and runs `MS1LabeledWorkflow` once for the
+experiment. Each invocation must use one compatible SILAC label chemistry, so
+the duplex and triplex subsets of PXD003327 run separately.
 
 ## Requirements
 
 - Nextflow 25.10.0 or newer
-- A local environment containing the `parse_sdrf` command
-- An SDRF metadata file
-- The corresponding mzML files in a local directory
+- Docker for the pinned `sdrf-pipelines` container
+- The local OpenMS and Python tools used by the remaining processes (the
+  development setup uses the `silac` Conda environment)
+- The sibling `openms_silac_bash` repository with the PXD003327 mzML files and
+  `db/ecoli_k12_uniprot_reviewed.fasta`
 
-The current development setup uses the `silac` Conda environment from the
-companion Bash project.
+## Run the PXD003327 test profiles
 
-## Run the Phase 1 example
-
-With `openms_silac_bash` and this repository as sibling directories:
+From this repository:
 
 ```bash
 conda activate silac
-cd ~/thesis/openms_silac_nextflow
-
-nextflow run . \
-    --input ../openms_silac_bash/metadata/PXD003327/PXD003327.sdrf.tsv \
-    --mzml_dir ../openms_silac_bash/data/PXD003327/mzml
+nextflow run . -profile docker,test_duplex -resume
+nextflow run . -profile docker,test_triplex -resume
 ```
 
-After a code change, reuse completed work with:
+The `test_duplex` profile selects `PXD003327_duplex.sdrf.tsv` (two mzML runs),
+and `test_triplex` selects `PXD003327_triplex.sdrf.tsv` (one mzML run). Both use
+the PXD003327 mzML directory and E. coli target FASTA in the sibling Bash
+repository. The `docker` profile enables the SDRF parser container; the test
+profiles select input data. `-resume` reuses completed tasks when their inputs
+and settings match.
+
+If the companion repository is elsewhere, override either path on the command
+line, for example:
 
 ```bash
-nextflow run . \
-    --input ../openms_silac_bash/metadata/PXD003327/PXD003327.sdrf.tsv \
-    --mzml_dir ../openms_silac_bash/data/PXD003327/mzml \
+nextflow run . -profile docker,test_duplex \
+    --mzml_dir /path/to/PXD003327/mzml \
+    --database /path/to/ecoli_k12_uniprot_reviewed.fasta \
     -resume
 ```
 
-The workflow should print three run records for PXD003327:
-
-```text
-[[id:Chris_Ecoli_4-1], <path>/Chris_Ecoli_4-1.mzML]
-[[id:Chris_Ecoli_1-1], <path>/Chris_Ecoli_1-1.mzML]
-[[id:Chris_Ecoli_1-2-4], <path>/Chris_Ecoli_1-2-4.mzML]
-```
-
-The record order is not part of the workflow contract. Verify that all three
-paths exist and that the generated OpenMS tables contain three unique physical
-runs without duplicates caused by SILAC channel rows.
+Completed results are published under `results/PXD003327_duplex/` and
+`results/PXD003327_triplex/`. Inspect `experiment.mzTab`,
+`experiment.consensusXML`, and the generated SDRF configuration and design
+TSV files in each directory.
 
 ## Repository layout
 
