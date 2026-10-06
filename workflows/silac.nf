@@ -7,6 +7,7 @@ include { PEPTIDE_INDEXER } from '../modules/local/openms/peptide_indexer/main'
 include { PSM_FEATURE_EXTRACTOR } from '../modules/local/openms/psm_feature_extractor/main'
 include { PERCOLATOR } from '../modules/local/openms/percolator/main'
 include { MS1_LABELED_WORKFLOW } from '../modules/local/openms/ms1_labeled_workflow/main'
+include { THERMORAWFILEPARSER } from '../modules/local/thermorawfileparser/main'
 
 workflow SILAC {
 
@@ -49,8 +50,15 @@ workflow SILAC {
     .flatMap { runs -> runs }
     .set { validated_runs }
 
+    validated_runs.branch { meta, spectra ->
+        raw: spectra.extension.toLowerCase() == 'raw'
+        mzml: spectra.extension.toLowerCase() == 'mzml'
+    }.set { spectra_inputs }
+
+    THERMORAWFILEPARSER(spectra_inputs.raw)
+
     OPENMS_PEAK_PICKER(
-        validated_runs
+        spectra_inputs.mzml.mix(THERMORAWFILEPARSER.out.runs)
     )
 
     GENERATE_DECOY_DATABASE(

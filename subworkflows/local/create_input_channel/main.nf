@@ -15,10 +15,23 @@ workflow CREATE_INPUT_CHANNEL {
         .splitCsv(header: true, sep: '\t')
         .map { row ->
 
-            def mzml = file("${params.mzml_dir}/${row.Filename}")
+            def mzml = file(
+                "${params.spectra_dir ?: params.mzml_dir}/${row.Filename}",
+                checkIfExists: true
+            )
+
+            def extension = mzml.extension.toLowerCase()
+
+            if (!(extension in ['raw', 'mzml'])) {
+                error "Unsupported input format: ${mzml.name}"
+            }
+
+            if (extension == 'raw' && !params.convert_raw) {
+                error "RAW input ${mzml.name} requires --convert_raw"
+            }
 
             def meta = [
-                id: row.Filename.replaceFirst(/\.mzML$/, ''),
+                id: row.Filename.replaceFirst(/(?i)\.(raw|mzml)$/, ''),
                 acquisition_method: row['Proteomics Data Acquisition Method'],
                 label_type: row.Label,
                 enzyme: row.Enzyme,
