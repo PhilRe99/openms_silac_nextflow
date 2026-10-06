@@ -35,8 +35,22 @@ workflow SILAC {
         tuple(final_meta, mzml)
     }.set { resolved_runs }
 
+    //only accepts one shared chemistry for now (no mixed plex)
+    resolved_runs
+    .collect(flat: false)
+    .map { runs ->
+        def chemistries = runs.collect { run -> run[0].silac_labels }.unique()
+
+        assert chemistries.size() == 1 :
+            "Expected one SILAC chemistry, found ${chemistries}"
+
+        runs
+    }
+    .flatMap { runs -> runs }
+    .set { validated_runs }
+
     OPENMS_PEAK_PICKER(
-        resolved_runs
+        validated_runs
     )
 
     GENERATE_DECOY_DATABASE(
@@ -63,10 +77,8 @@ workflow SILAC {
     )
 
     //pooling for MS1labeledworkflow
-    //only accepts one shared chemistry for now (no mixed plex)
     PERCOLATOR.out.runs.collect(flat: false).map { runs ->
         def chemistries = runs.collect { run -> run[0].silac_labels }.unique()
-        assert chemistries.size() == 1 : "Expected one SILAC chemistry, found ${chemistries}"
         tuple(chemistries[0], runs)
     }.set { ms1_runs }
     
