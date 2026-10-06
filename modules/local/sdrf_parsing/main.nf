@@ -2,7 +2,7 @@ process SDRF_PARSING {
      
     tag "${sdrf.simpleName}"
     
-    container 'openms-silac/sdrf-pipelines:dea8ba9'
+    container 'openms-silac/sdrf-pipelines:dea8ba9-procps'
 
     publishDir "${params.outdir}/${file(params.input).name.replaceFirst(/\.sdrf\.tsv$/, '')}", mode: 'copy'
 

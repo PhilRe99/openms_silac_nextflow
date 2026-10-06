@@ -2,7 +2,7 @@ process RESOLVE_SILAC_CONFIG {
 
     tag "${meta.id}"
 
-    container 'python:3.11-slim'
+    container 'openms-silac/python:3.11-procps'
 
     input:
     tuple val(meta), path(mzml)

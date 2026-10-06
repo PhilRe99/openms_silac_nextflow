@@ -28,17 +28,40 @@ the duplex and triplex subsets of PXD003327 run separately.
 From this repository:
 
 ```bash
+docker build -f containers/sdrf-pipelines.Dockerfile \
+    -t openms-silac/sdrf-pipelines:dea8ba9-procps containers
+docker build -f containers/python.Dockerfile \
+    -t openms-silac/python:3.11-procps containers
 conda activate silac
 nextflow run . -profile docker,test_duplex -resume
 nextflow run . -profile docker,test_triplex -resume
 ```
 
-The `test_duplex` profile selects `PXD003327_duplex.sdrf.tsv` (two mzML runs),
-and `test_triplex` selects `PXD003327_triplex.sdrf.tsv` (one mzML run). Both use
+The `test_duplex` profile selects `testdata/PXD003327_duplex.sdrf.tsv` (two mzML runs),
+and `test_triplex` selects `testdata/PXD003327_triplex.sdrf.tsv` (one mzML run). Both use
 the PXD003327 mzML directory and E. coli target FASTA in the sibling Bash
 repository. The `docker` profile enables the SDRF parser container; the test
 profiles select input data. `-resume` reuses completed tasks when their inputs
 and settings match.
+
+Build the SDRF image once using the existing local
+`openms-silac/sdrf-pipelines:dea8ba9` image as its base. The derived image keeps
+the same parser revision and adds `procps`, which supplies the `ps` command
+Nextflow requires when collecting report, trace, or timeline metrics. Build
+the Python resolver image once as well; it adds the same dependency to
+`python:3.11-slim`.
+
+Use a fresh filename for each execution report, trace, and timeline to avoid
+collisions with previous runs:
+
+```bash
+run_stamp=$(date +%Y%m%d_%H%M%S)
+nextflow run . -profile docker,test_duplex -resume \
+    --outdir results/baseline_duplex_fresh \
+    -with-report "baseline_duplex_${run_stamp}_report.html" \
+    -with-trace "baseline_duplex_${run_stamp}_trace.tsv" \
+    -with-timeline "baseline_duplex_${run_stamp}_timeline.html"
+```
 
 If the companion repository is elsewhere, override either path on the command
 line, for example:
