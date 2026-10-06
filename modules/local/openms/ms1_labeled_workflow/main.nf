@@ -12,10 +12,12 @@ process MS1_LABELED_WORKFLOW {
     output:
     path "experiment.mzTab", emit: mztab
     path "experiment.consensusXML", emit: consensus
+    path "qpx", optional: true, emit: qpx
     
     script:
 
     def args = task.ext.args ?: ''
+    def qpxArgs = params.enable_qpx ? '-out_qpx qpx' : ''
 
     def mzmlArgs = mzmls.collect { item ->
         "'" + item.toString().replace("'", "'\"'\"'") + "'"
@@ -34,6 +36,7 @@ process MS1_LABELED_WORKFLOW {
         ${args} \
         -out experiment.mzTab \
         -out_cxml experiment.consensusXML \
+        ${qpxArgs} \
         -threads ${task.cpus}
     """
 }

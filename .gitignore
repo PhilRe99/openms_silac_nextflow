@@ -1,4 +1,11 @@
 AGENT.md
+PROJECT_STATUS_AND_CONTEXT.md
+
+data/
+testdata/
+docs/
+tests/
+assets/
 
 # Nextflow
 .nextflow/
