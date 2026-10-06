@@ -77,11 +77,12 @@ workflow SILAC {
     )
 
     //pooling for MS1labeledworkflow
-    PERCOLATOR.out.runs.collect(flat: false).map { runs ->
-        def chemistries = runs.collect { run -> run[0].silac_labels }.unique()
-        tuple(chemistries[0], runs)
-    }.set { ms1_runs }
-    
+    PERCOLATOR.out.runs
+        .collect(flat: false)
+        .map { runs ->
+            tuple(runs[0][0].silac_labels, runs)
+        }
+    .set { ms1_runs }
 
     //restructuring collected runs into form the MS1 workflow needs
     //run[1] = mzML
