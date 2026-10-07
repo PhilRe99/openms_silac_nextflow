@@ -7,6 +7,20 @@ testdata/
 docs/
 tests/
 assets/
+misc/
+
+# Keep standalone scientific analysis documentation and regression fixtures.
+!docs/
+docs/*
+!docs/completed_run_analysis.md
+!tests/
+tests/*
+!tests/test_completed_run_analysis.py
+!tests/test_export_silac_ratios.py
+!tests/test_silac_qc.py
+!tests/fixtures/
+tests/fixtures/*
+!tests/fixtures/pxd003327_duplex_baseline.json
 
 # Nextflow
 .nextflow/

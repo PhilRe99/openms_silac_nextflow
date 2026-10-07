@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "datasets": {
+    "PXD003327": {
+      "detect_by_runs": true,
+      "sources": [
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC4974355/"
+      ],
+      "questions": [
+        "Are known amino-acid-specific mixtures recovered accurately, and does the error differ between single-K and single-R peptides?",
+        "How many peptides and protein groups have quantitative estimates?"
+      ],
+      "peptide_classes": {
+        "K_only": {
+          "K": 1,
+          "R": 0
+        },
+        "R_only": {
+          "K": 0,
+          "R": 1
+        }
+      },
+      "runs": {
+        "Chris_Ecoli_4-1": {
+          "amounts": {
+            "K_only": {
+              "[]": 4,
+              "[Lys8,Arg10]": 1
+            },
+            "R_only": {
+              "[]": 1,
+              "[Lys8,Arg10]": 4
+            }
+          }
+        },
+        "Chris_Ecoli_1-1": {
+          "amounts": {
+            "K_only": {
+              "[]": 1,
+              "[Lys8,Arg10]": 1
+            },
+            "R_only": {
+              "[]": 1,
+              "[Lys8,Arg10]": 1
+            }
+          }
+        },
+        "Chris_Ecoli_1-2-4": {
+          "amounts": {
+            "K_only": {
+              "[]": 1,
+              "[Lys4,Arg6]": 2,
+              "[Lys8,Arg10]": 4
+            },
+            "R_only": {
+              "[]": 4,
+              "[Lys4,Arg6]": 2,
+              "[Lys8,Arg10]": 1
+            }
+          }
+        }
+      }
+    },
+    "PXD039580": {
+      "detect_by_runs": true,
+      "sources": [
+        "https://www.nature.com/articles/s41467-023-43919-3",
+        "https://github.com/krijgsveld-lab/QuaNPA"
+      ],
+      "questions": [
+        "How accurately are the two HeLa SILAC mixtures recovered?",
+        "How reproducible are ratios across three technical DDA injections?",
+        "Does quantification coverage change between the two mixtures?"
+      ],
+      "peptide_classes": {
+        "all": {}
+      },
+      "runs": {
+        "20220603_QE1_TB_A3R1_DDA1": {
+          "replicate_set": "Mix1_DDA",
+          "replicate_type": "technical",
+          "replicate": "1",
+          "amounts": {
+            "all": {
+              "[]": 70,
+              "[Lys4,Arg6]": 15,
+              "[Lys8,Arg10]": 15
+            }
+          }
+        },
+        "20220603_QE1_TB_A3R1_DDA2": {
+          "replicate_set": "Mix1_DDA",
+          "replicate_type": "technical",
+          "replicate": "2",
+          "amounts": {
+            "all": {
+              "[]": 70,
+              "[Lys4,Arg6]": 15,
+              "[Lys8,Arg10]": 15
+            }
+          }
+        },
+        "20220603_QE1_TB_A3R1_DDA3": {
+          "replicate_set": "Mix1_DDA",
+          "replicate_type": "technical",
+          "replicate": "3",
+          "amounts": {
+            "all": {
+              "[]": 70,
+              "[Lys4,Arg6]": 15,
+              "[Lys8,Arg10]": 15
+            }
+          }
+        },
+        "20220603_QE1_TB_A3R2_DDA1": {
+          "replicate_set": "Mix2_DDA",
+          "replicate_type": "technical",
+          "replicate": "1",
+          "amounts": {
+            "all": {
+              "[]": 20,
+              "[Lys4,Arg6]": 40,
+              "[Lys8,Arg10]": 40
+            }
+          }
+        },
+        "20220603_QE1_TB_A3R2_DDA2": {
+          "replicate_set": "Mix2_DDA",
+          "replicate_type": "technical",
+          "replicate": "2",
+          "amounts": {
+            "all": {
+              "[]": 20,
+              "[Lys4,Arg6]": 40,
+              "[Lys8,Arg10]": 40
+            }
+          }
+        },
+        "20220603_QE1_TB_A3R2_DDA3": {
+          "replicate_set": "Mix2_DDA",
+          "replicate_type": "technical",
+          "replicate": "3",
+          "amounts": {
+            "all": {
+              "[]": 20,
+              "[Lys4,Arg6]": 40,
+              "[Lys8,Arg10]": 40
+            }
+          }
+        }
+      }
+    },
+    "MSV000079761": {
+      "detect_by_runs": false,
+      "sources": [
+        "https://massive.ucsd.edu/ProteoSAFe/dataset.jsp?task=6a13399e5a4145b2b87dd1b5a1d55948"
+      ],
+      "questions": [
+        "Does the yeast mixture recover a heavy/light ratio of one?"
+      ],
+      "peptide_classes": {
+        "all": {}
+      },
+      "runs": {
+        "1to1": {
+          "amounts": {
+            "all": {
+              "[]": 1,
+              "[Lys8,Arg10]": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}

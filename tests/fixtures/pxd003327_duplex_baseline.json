@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "dataset": "PXD003327_duplex",
+  "captured_on": "2026-10-05",
+  "command": [
+    "python3",
+    "bin/analyze_ms1_mztab.py",
+    "results/PXD003327_duplex/experiment.mzTab",
+    "results/PXD003327_duplex/PXD003327_duplex.sdrf_openms_design.tsv",
+    "--benchmark",
+    "pxd003327"
+  ],
+  "checker_stdout": "Records: PRT=399, PEP=791, PSM=3491\nGroup\tRun\tClass\tRatio\tN\tMedian\tExpected\n1\tChris_Ecoli_4-1\tK\tH/L\t135\t0.275\t0.250\n1\tChris_Ecoli_4-1\tR\tH/L\t212\t3.973\t4.000\n2\tChris_Ecoli_1-1\tK\tH/L\t188\t0.994\t1.000\n2\tChris_Ecoli_1-1\tR\tH/L\t273\t1.017\t1.000\n",
+  "software": "3.6.0-pre-HEAD-2026-09-30",
+  "source_sha256": {
+    "results/PXD003327_duplex/experiment.mzTab": "01a5b58295d72b7f21fec32750c49f44337350f5773f287a72f27537259e7bd0",
+    "results/PXD003327_duplex/experiment.consensusXML": "595a561c7b1fcb7ee4c9207bf661d2ef02ded8c47b6fac83e670316146768a23",
+    "results/PXD003327_duplex/PXD003327_duplex.sdrf_openms_design.tsv": "b10869b112eed2a58c77f346fb51ae7c524cd863b17b83af54594c3c9982cc0f"
+  },
+  "mztab_rows": {
+    "PRT": 399,
+    "PEP": 791,
+    "PSM": 3491
+  },
+  "peptide_ratio_entries": 954,
+  "unique_peptides_with_ratio": 701,
+  "protein_ratio_entries": 182,
+  "protein_groups_with_ratio": 117,
+  "benchmark": [
+    {
+      "fraction_group": 1,
+      "run": "Chris_Ecoli_4-1",
+      "channel": 2,
+      "class": "K",
+      "n": 135,
+      "median": 0.274929515744481,
+      "expected": 0.25
+    },
+    {
+      "fraction_group": 1,
+      "run": "Chris_Ecoli_4-1",
+      "channel": 2,
+      "class": "R",
+      "n": 212,
+      "median": 3.9728854973230634,
+      "expected": 4.0
+    },
+    {
+      "fraction_group": 2,
+      "run": "Chris_Ecoli_1-1",
+      "channel": 2,
+      "class": "K",
+      "n": 188,
+      "median": 0.994175886111698,
+      "expected": 1.0
+    },
+    {
+      "fraction_group": 2,
+      "run": "Chris_Ecoli_1-1",
+      "channel": 2,
+      "class": "R",
+      "n": 273,
+      "median": 1.016569529137816,
+      "expected": 1.0
+    }
+  ]
+}

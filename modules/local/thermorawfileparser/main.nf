@@ -1,7 +1,7 @@
 process THERMORAWFILEPARSER {
     tag "${meta.id}"
 
-    container 'biocontainers/thermorawfileparser:1.4.5--h05cac1d_1'
+    container 'quay.io/biocontainers/thermorawfileparser:1.4.5--h05cac1d_1'
 
     input:
     tuple val(meta), path(raw)
