@@ -27,20 +27,11 @@ process MS1_LABELED_WORKFLOW {
     }.join(' ')
 
     """
-    awk '
-        BEGIN { FS = OFS = "\\t" }
-        NF == 0 { samples = 1 }
-        !samples && NR > 1 {
-            sub(/\\.[rR][aA][wW]\$/, ".mzML", \$3)
-        }
-        { print }
-    ' "${design}" > ms1_design.tsv
-
     MS1LabeledWorkflow \
         -in ${mzmlArgs} \
         -ids ${idxmlArgs} \
         -labels "${labels}" \
-        -design ms1_design.tsv \\
+        -design "${design}" \
         -fasta "${database}" \
         ${args} \
         -out experiment.mzTab \

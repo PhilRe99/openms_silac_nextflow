@@ -136,6 +136,19 @@ configuration, and a **target-only FASTA** for the correct organism. The
 workflow generates decoys itself. Input files are local; automatic repository
 downloads are not implemented.
 
+For new datasets, store RAW inputs under `/mnt/d/thesis/data/<accession>/raw/`
+and references under `/mnt/d/thesis/data/<accession>/reference/`. Curated
+metadata lives in the sister `sdrf_annotations` repository. Existing examples
+below also describe historical data locations; the storage convention does
+not move those files automatically. Nextflow accepts the D: paths through
+`--spectra_dir` and `--database`; its work directory can remain on Linux.
+
+For the newly downloaded H1975 pilot, see the
+[PXD001101 investigation and run guide](docs/pxd001101_run_guide.md). Use the
+corrected pilot linked there: the sister repository's corrupted pilot was
+removed because it lost the distinct modification columns. The SDRF copy on
+D: is older.
+
 For mzML inputs:
 
 ```bash
@@ -162,7 +175,9 @@ nextflow run . -profile docker,low_memory \
 `--spectra_dir` takes precedence over `--mzml_dir`. The active input channel
 accepts `.raw` and `.mzML` case-insensitively. RAW requires `--convert_raw`;
 mzXML is not accepted. SDRF filenames must match the actual inputs. RAW
-filenames in the experimental design are rewritten to `.mzML` in the MS1 task.
+filenames in the experimental design are mapped to `.mzML` by the SDRF converter
+when `--convert_raw` is enabled. The input configuration retains the original RAW
+filenames, and MS1LabeledWorkflow uses the generated design directly.
 
 Published outputs are nested under the input SDRF name without `.sdrf.tsv`:
 
@@ -816,6 +831,21 @@ validation runs. Native QPX output still needs compatibility validation for
 its intended downstream consumer.
 
 ## Verification and troubleshooting
+
+To preview disposable execution files, run `bash bin/cleanup_run.sh`.
+After stopping the pipeline, delete them with:
+
+```bash
+bash bin/cleanup_run.sh --delete
+# For Docker-created directories owned by another user:
+bash bin/cleanup_run.sh --delete --sudo
+```
+
+The script removes `work/`, `.nextflow/`, root `.nextflow.log*` files and
+Python bytecode caches. It keeps published results (including their logs),
+input data, metadata and historical context. Cleanup prevents resuming old
+runs. It checks for active local tasks before deletion and works from any
+directory by locating the repository relative to the script.
 
 For Python helper tests and available local baseline regressions:
 

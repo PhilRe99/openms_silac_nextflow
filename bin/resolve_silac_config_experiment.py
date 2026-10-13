@@ -36,8 +36,11 @@ def read_experimental_design(experimental_design_file, raw_data_file):
     with open(experimental_design_file, "r") as f:
         lines = list(f)
 
-    matching_rows = []
     filename = Path(raw_data_file).name
+    design_filenames = [filename]
+    if Path(filename).suffix.lower() == ".raw":
+        # The converter can write mzML design paths before RAW conversion runs.
+        design_filenames.append(Path(filename).with_suffix(".mzML").name)
 
     #finding seperator for the two tables.
     separator = next(i for i, line in enumerate(lines)if not line.strip())
@@ -46,14 +49,15 @@ def read_experimental_design(experimental_design_file, raw_data_file):
     file_rows = list(file_reader)
 
 
-    for row in file_rows:
-        if Path(row["Spectra_Filepath"]).name == filename:
-                matching_rows.append(row)
+    for design_filename in design_filenames:
+        matching_rows = [
+            row for row in file_rows
+            if Path(row["Spectra_Filepath"]).name == design_filename
+        ]
+        if matching_rows:
+            return matching_rows
 
-    if not matching_rows:
-        raise ValueError(f"No matching row found for {filename} in experimental design file {experimental_design_file}")
-
-    return matching_rows
+    raise ValueError(f"No matching row found for {filename} in experimental design file {experimental_design_file}")
 
 
 #finds needed labels. e.g.: light, heavy = 1,3
