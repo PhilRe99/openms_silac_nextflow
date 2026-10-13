@@ -1,6 +1,7 @@
+import argparse
 import csv
 import json
-import sys
+import math
 from pathlib import Path
 
 LABEL_MODIFICATIONS = {
@@ -10,6 +11,37 @@ LABEL_MODIFICATIONS = {
     "Lys8": "Label:13C(6)15N(2) (K)",
     "Arg10": "Label:13C(6)15N(4) (R)",
 }
+
+def resolve_comet_fragment_tolerance(metadata_value, metadata_unit, override=None):
+    """Resolve the Comet Da bin tolerance without changing the input metadata."""
+    value = override if override is not None else metadata_value
+    unit = "Da" if override is not None else metadata_unit
+    source = "explicit_override" if override is not None else "metadata"
+
+    if unit != "Da":
+        raise ValueError(
+            f"Comet requires fragment tolerance in Da; metadata specifies "
+            f"{metadata_value} {metadata_unit}. Set --comet_fragment_mass_tolerance "
+            "explicitly in Da (ppm has no fixed Da equivalent)."
+        )
+    try:
+        tolerance = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"Comet fragment tolerance must be a finite number >= 0.0001 Da; got {value!r}."
+        ) from None
+    if isinstance(value, bool) or not math.isfinite(tolerance) or tolerance < 0.0001:
+        raise ValueError(
+            f"Comet fragment tolerance must be a finite number >= 0.0001 Da; got {value!r}."
+        )
+
+    return {
+        "value": tolerance,
+        "unit": unit,
+        "source": source,
+        "metadata_value": metadata_value,
+        "metadata_unit": metadata_unit,
+    }
 
 #reads openms.tsv and selects current run to create json
 def read_openms_data(openms_data_file, raw_data_file) -> dict:
@@ -187,19 +219,37 @@ def build_ffm_labels(labels, label_channels, channel_chemistry) -> str:
 
     return ffm_labels
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Resolve per-run SILAC and Comet fragment settings.")
+    parser.add_argument("openms_data")
+    parser.add_argument("experimental_design")
+    parser.add_argument("raw_data")
+    parser.add_argument("silac_config")
+    parser.add_argument("chemistry_file")
+    parser.add_argument("--comet-fragment-mass-tolerance", default=None,
+                        help="Explicit Comet fragment bin tolerance override, always in Da.")
+    args = parser.parse_args(argv)
 
-    openms_data = sys.argv[1]
-    experimental_design = sys.argv[2]
-    raw_data = sys.argv[3]
-    silac_config = sys.argv[4]
-    chemistry_file = sys.argv[5]
+    openms_data = args.openms_data
+    experimental_design = args.experimental_design
+    raw_data = args.raw_data
+    silac_config = args.silac_config
+    chemistry_file = args.chemistry_file
 
     
     with open(chemistry_file) as handle:
         channel_chemistry = json.load(handle)
 
     openms_design = read_openms_data(openms_data, raw_data)
+    
+    try:
+        fragment_tolerance = resolve_comet_fragment_tolerance(
+            openms_design.get("FragmentMassTolerance"),
+            openms_design.get("FragmentMassToleranceUnit"),
+            args.comet_fragment_mass_tolerance,
+        )
+    except ValueError as exc:
+        parser.error(f"{Path(raw_data).name}: {exc}")
     experimental_design_rows = read_experimental_design(experimental_design, raw_data)
 
     labels = collect_labels(experimental_design_rows)
@@ -230,7 +280,8 @@ def main():
         "label_modifications": label_modifications,
         "variable_modifications": variable_modifications,
         "binary_modifications": binary_modifications,
-        "ffm_labels": ffm_labels
+        "ffm_labels": ffm_labels,
+        "comet_fragment_mass_tolerance": fragment_tolerance,
     }
 
     with open(silac_config, "w") as f:

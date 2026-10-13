@@ -22,7 +22,8 @@ workflow SILAC {
         CREATE_INPUT_CHANNEL.out.runs,
         CREATE_INPUT_CHANNEL.out.openms,
         CREATE_INPUT_CHANNEL.out.experimental_design,
-        Channel.value(file(params.silac_chemistry, checkIfExists: true))
+        Channel.value(file(params.silac_chemistry, checkIfExists: true)),
+        Channel.value([override: params.comet_fragment_mass_tolerance])
     )
 
     //expanding meta for the needed additional info
@@ -31,7 +32,10 @@ workflow SILAC {
         def final_meta = meta + [
             variable_modifications: cfg.variable_modifications,
             binary_modifications: cfg.binary_modifications,
-            silac_labels: cfg.ffm_labels
+            silac_labels: cfg.ffm_labels,
+            comet_fragment_mass_tolerance: cfg.comet_fragment_mass_tolerance.value,
+            comet_fragment_mass_tolerance_unit: cfg.comet_fragment_mass_tolerance.unit,
+            comet_fragment_mass_tolerance_source: cfg.comet_fragment_mass_tolerance.source
         ]
         tuple(final_meta, mzml)
     }.set { resolved_runs }
@@ -62,7 +66,7 @@ workflow SILAC {
     )
 
     GENERATE_DECOY_DATABASE(
-        Channel.value(file(params.database, checkIfExists: true))
+        validated_runs.first().map { run -> file(params.database, checkIfExists: true) }
     )
 
     OPENMS_PEAK_PICKER.out.runs

@@ -185,13 +185,15 @@ Published outputs are nested under the input SDRF name without `.sdrf.tsv`:
 results/study_run/study/
   study.sdrf_config.tsv
   study.sdrf_openms_design.tsv
+  configuration/
+    silac_config_<run-id>.json
   experiment.mzTab
   experiment.consensusXML
   qpx/                         # only when --enable_qpx is set
 ```
 
 The metadata files can appear before quantification finishes. Intermediate
-mzML, idXML, resolved configuration JSONs, and executed task commands remain
+mzML, idXML, and executed task commands remain
 under Nextflow's `work/` directory. Retain `work/` and `.nextflow/` to reuse
 matching tasks with `-resume`; cached execution is not a fresh rerun.
 
@@ -221,11 +223,20 @@ Other processes currently retain one CPU, including `MS1LabeledWorkflow`.
 The `low_memory` profile limits execution to one task at a time across
 processes; it does not set a per-task RAM limit or make a large task smaller.
 
-Comet currently requires fragment tolerance in **Da**. If the SDRF provides
-ppm, the process stops and requests an explicit
+`RESOLVE_SILAC_CONFIG` resolves Comet fragment tolerance in **Da** before
+spectrum processing. If the SDRF provides ppm, resolution stops and requests an explicit
 `--comet_fragment_mass_tolerance`. There is no fixed ppm-to-Da conversion
 independent of fragment m/z. Treat the override as a documented search-engine
 choice; do not claim numerical equivalence to the SDRF ppm tolerance.
+
+For a deliberate Comet bin-tolerance choice, add
+`--comet_fragment_mass_tolerance 0.02` to the processing command. Correct
+inaccurate experimental metadata in the SDRF itself. Inspect the published
+`configuration/silac_config_<run-id>.json` for the resolved value, unit,
+source (`metadata` or `explicit_override`), and original metadata. Comet
+uses that resolved value. See [configuration handling](docs/configuration.md)
+for the exact precedence and validation rules; this JSON is not a complete
+report of every tool setting.
 
 Default chemistry is light `[]`, medium `[Lys4,Arg6]`, and heavy
 `[Lys8,Arg10]`. The resolver interprets global design labels `1/2` as

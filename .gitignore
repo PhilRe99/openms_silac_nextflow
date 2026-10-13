@@ -13,6 +13,7 @@ misc/
 !docs/
 docs/*
 !docs/completed_run_analysis.md
+!docs/configuration.md
 !docs/pxd001101_run_guide.md
 !docs/status_*.md
 !assets/
