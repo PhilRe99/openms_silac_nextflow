@@ -23,13 +23,15 @@ workflow SILAC {
         CREATE_INPUT_CHANNEL.out.openms,
         CREATE_INPUT_CHANNEL.out.experimental_design,
         Channel.value(file(params.silac_chemistry, checkIfExists: true)),
-        Channel.value([override: params.comet_fragment_mass_tolerance])
+        Channel.value([override: params.comet_fragment_mass_tolerance]),
+        Channel.value(file(params.input))
     )
 
     //expanding meta for the needed additional info
     RESOLVE_SILAC_CONFIG.out.runs.map { meta, mzml, config ->
         def cfg = new groovy.json.JsonSlurperClassic().parse(config.toFile())
         def final_meta = meta + [
+            fixed_modifications: cfg.fixed_modifications,
             variable_modifications: cfg.variable_modifications,
             binary_modifications: cfg.binary_modifications,
             silac_labels: cfg.ffm_labels,

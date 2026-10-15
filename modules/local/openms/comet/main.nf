@@ -21,6 +21,9 @@ process COMET {
         error "Missing resolved Comet fragment settings for ${meta.id}; run RESOLVE_SILAC_CONFIG first."
     }
 
+    def fixedMods = meta.fixed_modifications
+        .collect { value -> "'" + value.toString().replace("'", "'\"'\"'") + "'" }
+        .join(' ')
     def variableMods = meta.variable_modifications
         .collect { value -> "'" + value.toString().replace("'", "'\"'\"'") + "'" }
         .join(' ')
@@ -29,6 +32,7 @@ process COMET {
         .join(' ')
 
     """
+    FIXED_MODS=( ${fixedMods} )
     VARIABLE_MODS=( ${variableMods} )
     BINARY_MODS=( ${binaryMods} )
 
@@ -43,7 +47,7 @@ process COMET {
         -fragment_error_units '${fragmentUnit}' \
         -precursor_mass_tolerance '${meta.precursor_mass_tolerance.toString().replace("'", "'\"'\"'")}' \
         -precursor_error_units '${meta.precursor_mass_tolerance_unit.toString().replace("'", "'\"'\"'")}' \
-        -fixed_modifications '${meta.fixed_modifications.toString().replace("'", "'\"'\"'")}' \
+        -fixed_modifications "\${FIXED_MODS[@]}" \
         -variable_modifications "\${VARIABLE_MODS[@]}" \
         -binary_modifications "\${BINARY_MODS[@]}" \
         -reindex false \

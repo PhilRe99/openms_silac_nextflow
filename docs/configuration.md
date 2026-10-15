@@ -38,8 +38,8 @@ Each successful resolver task publishes:
   silac_config_<run-id>.json
 ```
 
-The JSON retains the existing SILAC chemistry, variable/binary modifications,
-original OpenMS row, and matching experimental-design rows. It adds:
+The JSON retains the existing SILAC chemistry, fixed and variable/binary
+modifications, original OpenMS row, and matching experimental-design rows. It adds:
 
 ```json
 {
@@ -71,7 +71,9 @@ in the Nextflow work directory.
 
 The helper still accepts its five positional arguments. An optional
 `--comet-fragment-mass-tolerance` argument supplies the override directly
-(the helper uses hyphens; the workflow parameter uses underscores).
+(the helper uses hyphens; the workflow parameter uses underscores). The
+workflow also passes `--sdrf`, which names the channels from the SDRF
+`comment[label]`; without it, a light/medium duplex is taken for light/heavy.
 
 Run the helper and baseline tests from the repository root:
 

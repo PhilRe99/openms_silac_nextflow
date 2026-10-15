@@ -156,5 +156,103 @@ class ExperimentalDesignLookupTests(unittest.TestCase):
                     read_experimental_design(self.design, filename)
 
 
+class SilacModificationTests(unittest.TestCase):
+    """SDRF-declared labels, fixed modifications and SDRF channel names."""
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.root = Path(self.directory.name)
+        self.openms = self.root / "openms.tsv"
+        self.design = self.root / "design.tsv"
+        self.sdrf = self.root / "experiment.sdrf.tsv"
+        self.chemistry = self.root / "chemistry.json"
+        self.output = self.root / "silac_config_run.json"
+        self.design.write_text(
+            "Fraction_Group\tFraction\tSpectra_Filepath\tLabel\tSample\n"
+            "1\t1\trun.mzML\t1\t1\n1\t1\trun.mzML\t2\t2\n\n"
+            "Sample\tMSstats_Condition\n1\tA\n2\tB\n"
+        )
+        self.chemistry.write_text(json.dumps(
+            {"light": [], "medium": ["Lys4", "Arg6"], "heavy": ["Lys8", "Arg10"]}))
+
+    def write_sdrf(self, *labels):
+        rows = ["source name\tcomment[label]\tcomment[data file]"]
+        rows += [f"S{i}\t{label}\trun.raw" for i, label in enumerate(labels)]
+        self.sdrf.write_text("\n".join(rows) + "\n")
+
+    def run_resolver(self, variable="Oxidation (M)", fixed="Carbamidomethyl (C)", sdrf=False):
+        with self.openms.open("w", newline="") as handle:
+            writer = csv.DictWriter(handle, delimiter="\t", fieldnames=[
+                "Filename", "Label", "FixedModifications", "VariableModifications",
+                "FragmentMassTolerance", "FragmentMassToleranceUnit",
+            ])
+            writer.writeheader()
+            writer.writerow({"Filename": "run.raw", "Label": "SILAC", "FixedModifications": fixed,
+                             "VariableModifications": variable,
+                             "FragmentMassTolerance": "0.02", "FragmentMassToleranceUnit": "Da"})
+        command = [sys.executable, str(Path(__file__).resolve().parents[1] / "bin/resolve_silac_config_experiment.py"),
+                   str(self.openms), str(self.design), "run.raw", str(self.output), str(self.chemistry)]
+        if sdrf:
+            command += ["--sdrf", str(self.sdrf)]
+        return subprocess.run(command, capture_output=True, text=True)
+
+    def config(self):
+        return json.loads(self.output.read_text())
+
+    def test_sdrf_declared_labels_are_searched_in_their_binary_group_only(self):
+        result = self.run_resolver(
+            "Acetyl (Protein N-term),Label:13C(6)15N(2) (K),Label:13C(6)15N(4) (R),Oxidation (M)")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        config = self.config()
+        self.assertEqual(config["variable_modifications"], [
+            "Acetyl (Protein N-term)", "Oxidation (M)", "Label:13C(6)15N(2) (K)", "Label:13C(6)15N(4) (R)",
+        ])
+        self.assertEqual(config["binary_modifications"], [0, 0, 1, 1])
+
+    def test_sdrf_labels_conflicting_with_chemistry_fail(self):
+        for variable in ("Label:13C(6) (K),Label:13C(6) (R)", "Label:13C(6)15N(4) (R)"):
+            with self.subTest(variable=variable):
+                result = self.run_resolver(variable)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("--silac_chemistry", result.stderr)
+                self.assertFalse(self.output.exists())
+
+    def test_fixed_modifications_are_split(self):
+        result = self.run_resolver(fixed="Carbamidomethyl (C),Gln->pyro-Glu (N-term Q)")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.config()["fixed_modifications"], ["Carbamidomethyl (C)", "Gln->pyro-Glu (N-term Q)"])
+        self.assertEqual(self.run_resolver(fixed="").returncode, 0)
+        self.assertEqual(self.config()["fixed_modifications"], [])
+
+    def test_fixed_silac_label_fails(self):
+        result = self.run_resolver(fixed="Carbamidomethyl (C),Label:13C(6)15N(4) (R)")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("MT=variable", result.stderr)
+
+    def test_sdrf_channel_names_select_the_chemistry(self):
+        for labels, channels, ffm_labels in (
+            (("SILAC light", "SILAC heavy"), {"1": "light", "2": "heavy"}, "[][Lys8,Arg10]"),
+            (("SILAC light", "SILAC medium"), {"1": "light", "2": "medium"}, "[][Lys4,Arg6]"),
+            (("NT=SILAC light", "NT=SILAC Medium;AC=x"), {"1": "light", "2": "medium"}, "[][Lys4,Arg6]"),
+        ):
+            with self.subTest(labels=labels):
+                self.write_sdrf(*labels)
+                result = self.run_resolver(sdrf=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(self.config()["label_channels"], channels)
+                self.assertEqual(self.config()["ffm_labels"], ffm_labels)
+
+    def test_sdrf_and_design_channels_must_agree(self):
+        # 'SILAC medium' elsewhere in the SDRF makes heavy channel 3, the design says 2
+        self.sdrf.write_text(
+            "source name\tcomment[label]\tcomment[data file]\n"
+            "S1\tSILAC light\trun.raw\nS2\tSILAC heavy\trun.raw\nS3\tSILAC medium\tother.raw\n"
+        )
+        result = self.run_resolver(sdrf=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("do not match the design labels", result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
