@@ -12,6 +12,7 @@ process RESOLVE_SILAC_CONFIG {
     path experimental_design
     path chemistry
     val fragment_tolerance_options
+    path sdrf
 
     output:
     tuple val(meta), path(mzml), path("silac_config_${meta.id}.json"), emit: runs
@@ -30,6 +31,7 @@ process RESOLVE_SILAC_CONFIG {
         "${mzml}" \
         "silac_config_${meta.id}.json" \
         "${chemistry}" \
+        --sdrf "${sdrf}" \
         ${fragmentArgs}
     """
 }

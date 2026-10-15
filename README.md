@@ -64,7 +64,11 @@ The active steps are:
    and condition annotations.
 2. Resolve the isotope chemistry and add the SILAC modifications and binary
    modification groups needed by Comet. The chemistry is supplied explicitly
-   through [assets/silac_chemistry.json](assets/silac_chemistry.json).
+   through [assets/silac_chemistry.json](assets/silac_chemistry.json). Channel
+   names (light/medium/heavy) come from the SDRF `comment[label]`. SILAC labels
+   that the SDRF lists as variable modifications are searched only in their
+   binary group and must match the chemistry; labels annotated as fixed
+   modifications are rejected.
 3. Convert Thermo RAW inputs to mzML when requested. Run `PeakPickerHiRes` on
    every mzML entering identification; there is currently no automatic
    profile/centroid bypass.

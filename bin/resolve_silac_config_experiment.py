@@ -2,6 +2,7 @@ import argparse
 import csv
 import json
 import math
+import re
 from pathlib import Path
 
 LABEL_MODIFICATIONS = {
@@ -11,6 +12,19 @@ LABEL_MODIFICATIONS = {
     "Lys8": "Label:13C(6)15N(2) (K)",
     "Arg10": "Label:13C(6)15N(4) (R)",
 }
+SILAC_LABEL_MODIFICATIONS = set(LABEL_MODIFICATIONS.values())
+
+#channel numbers written by sdrf-pipelines into the experimental design
+#(OpenMSExperimentalDesign._get_label_from_labels): light/medium/heavy = 1/2/3 as soon as
+#any SDRF row is 'SILAC medium', otherwise light/heavy = 1/2
+SDRF_SILAC_3PLEX = {"silac light": "1", "silac medium": "2", "silac heavy": "3"}
+SDRF_SILAC_2PLEX = {"silac light": "1", "silac heavy": "2"}
+
+def split_modifications(value) -> list[str]:
+    return [mod.strip() for mod in (value or "").split(",") if mod.strip()]
+
+def run_stem(filename):
+    return re.sub(r"(?i)\.(raw|mzml)$", "", Path(filename).name)
 
 def resolve_comet_fragment_tolerance(metadata_value, metadata_unit, override=None):
     """Resolve the Comet Da bin tolerance without changing the input metadata."""
@@ -151,6 +165,45 @@ def determine_label_channels(global_labels):
             f"{sorted(global_labels, key=int)}"
         )
 
+#reads the channel names of the current run from the SDRF, e.g.: {"1": "light", "2": "medium"}
+#the design numbers alone cannot tell a light/medium from a light/heavy duplex
+def read_sdrf_label_channels(sdrf_file, raw_data_file) -> dict:
+
+    with open(sdrf_file, newline="") as f:
+        rows = [row for row in csv.reader(f, delimiter="\t") if row]
+
+    header = [column.strip().lower() for column in rows[0]]
+    for column in ("comment[data file]", "comment[label]"):
+        if column not in header:
+            raise ValueError(f"SDRF {sdrf_file} has no {column} column")
+    file_column = header.index("comment[data file]")
+    label_column = header.index("comment[label]")
+
+    records = []
+    for row in rows[1:]:
+        #plain ('SILAC heavy') or NT-encoded ('NT=SILAC heavy;AC=...') label
+        match = re.search(r"(?:^|;)\s*NT=([^;]+)", row[label_column], flags=re.IGNORECASE)
+        label = (match.group(1) if match else row[label_column]).strip().lower()
+        records.append((row[file_column].strip(), label))
+
+    silac_labels = {label for _, label in records if label.startswith("silac")}
+    numbering = SDRF_SILAC_3PLEX if "silac medium" in silac_labels else SDRF_SILAC_2PLEX
+
+    filename = Path(raw_data_file).name
+    run_labels = [label for data_file, label in records if data_file == filename]
+    if not run_labels:
+        run_labels = [label for data_file, label in records if run_stem(data_file) == run_stem(filename)]
+    if not run_labels:
+        raise ValueError(f"No SDRF row found for {filename} in {sdrf_file}")
+
+    channels = {}
+    for label in run_labels:
+        if label not in numbering:
+            raise ValueError(f"Unsupported SILAC label {label!r} for {filename} in {sdrf_file}")
+        channels[numbering[label]] = label.removeprefix("silac ")
+
+    return channels
+
 #determines modification from label. e.g: 1,3 = [], ["light", "heavy"]
 #then gets channel_chemistry e.g.: medium = ["Lys4", "Arg6"]
 #then gets comet readable modifications Lys8 = Label:13C(6)15N(2) (K)
@@ -161,6 +214,8 @@ def map_labels_to_modifications(labels, label_channels, channel_chemistry) -> di
     for label in labels:
 
         channel_name = label_channels[label]
+        if channel_name not in channel_chemistry:
+            raise ValueError(f"SILAC channel {channel_name!r} is not defined in the chemistry file")
         label_modifications[channel_name] = []
 
         for modification in channel_chemistry[channel_name]:
@@ -179,17 +234,26 @@ def map_labels_to_modifications(labels, label_channels, channel_chemistry) -> di
 #builds Comet variable and binary modifications
 #generic variable mods use group 0
 #each labelled SILAC channel gets its own non-zero binary group
+#SILAC labels the SDRF lists as variable modifications are searched in their binary group only:
+#an additional group 0 copy would also allow partially labelled peptides
 def build_comet_binary_modifications(openms_design, label_modifications) -> list:
 
-    variable_modifications = [
-    mod.strip()
-    for mod in openms_design.get("VariableModifications", "").split(",") if mod.strip()
-    ]
+    sdrf_modifications = split_modifications(openms_design.get("VariableModifications"))
 
     variable_modifications_silac = []
 
     for key in label_modifications.keys():
         variable_modifications_silac.extend(label_modifications[key])
+
+    declared_labels = {mod for mod in sdrf_modifications if mod in SILAC_LABEL_MODIFICATIONS}
+    if declared_labels and declared_labels != set(variable_modifications_silac):
+        raise ValueError(
+            f"The SDRF declares the SILAC labels {sorted(declared_labels)}, but the chemistry file "
+            f"resolves {sorted(set(variable_modifications_silac))} for this run. "
+            "Correct the SDRF modification parameters or --silac_chemistry."
+        )
+
+    variable_modifications = [mod for mod in sdrf_modifications if mod not in SILAC_LABEL_MODIFICATIONS]
 
     binary_group = 0
 
@@ -205,6 +269,20 @@ def build_comet_binary_modifications(openms_design, label_modifications) -> list
     variable_modifications = variable_modifications + variable_modifications_silac
     
     return variable_modifications, binary_modifications
+
+#builds Comet fixed modifications as a list, one entry per modification
+def build_fixed_modifications(openms_design) -> list:
+
+    fixed_modifications = split_modifications(openms_design.get("FixedModifications"))
+
+    fixed_labels = [mod for mod in fixed_modifications if mod in SILAC_LABEL_MODIFICATIONS]
+    if fixed_labels:
+        raise ValueError(
+            f"The SDRF annotates the SILAC labels {fixed_labels} as fixed modifications, "
+            "which would label every channel. Annotate them as variable (MT=variable)."
+        )
+
+    return fixed_modifications
 
 #builds labels for FeatureFinderMultiplex in needed format
 def build_ffm_labels(labels, label_channels, channel_chemistry) -> str:
@@ -228,6 +306,9 @@ def main(argv=None):
     parser.add_argument("chemistry_file")
     parser.add_argument("--comet-fragment-mass-tolerance", default=None,
                         help="Explicit Comet fragment bin tolerance override, always in Da.")
+    parser.add_argument("--sdrf", default=None,
+                        help="SDRF the design was converted from. Its comment[label] names the channels; "
+                             "without it a light/medium duplex is taken for light/heavy.")
     args = parser.parse_args(argv)
 
     openms_data = args.openms_data
@@ -254,15 +335,27 @@ def main(argv=None):
 
     labels = collect_labels(experimental_design_rows)
 
-    global_labels = collect_global_labels(experimental_design)
-    global_label_channels = determine_label_channels(global_labels)
+    try:
+        if args.sdrf:
+            label_channels = read_sdrf_label_channels(args.sdrf, raw_data)
+            if set(label_channels) != set(labels):
+                raise ValueError(
+                    f"SDRF channels {label_channels} do not match the design labels {labels}; "
+                    "the channel numbering of sdrf-pipelines may have changed."
+                )
+        else:
+            global_labels = collect_global_labels(experimental_design)
+            global_label_channels = determine_label_channels(global_labels)
 
-    label_channels = {label: global_label_channels[label] for label in labels}
+            label_channels = {label: global_label_channels[label] for label in labels}
 
-    label_modifications = map_labels_to_modifications(labels, label_channels, channel_chemistry)
+        label_modifications = map_labels_to_modifications(labels, label_channels, channel_chemistry)
 
-    variable_modifications, binary_modifications = build_comet_binary_modifications(openms_design, label_modifications)
-    ffm_labels = build_ffm_labels(labels, label_channels, channel_chemistry)
+        variable_modifications, binary_modifications = build_comet_binary_modifications(openms_design, label_modifications)
+        fixed_modifications = build_fixed_modifications(openms_design)
+        ffm_labels = build_ffm_labels(labels, label_channels, channel_chemistry)
+    except ValueError as exc:
+        parser.error(f"{Path(raw_data).name}: {exc}")
 
     #print(f"OpenMS design: {openms_design}")
     #print(f"Experimental design rows: {experimental_design_rows}")
@@ -278,6 +371,7 @@ def main(argv=None):
         "labels": labels,
         "label_channels": label_channels,
         "label_modifications": label_modifications,
+        "fixed_modifications": fixed_modifications,
         "variable_modifications": variable_modifications,
         "binary_modifications": binary_modifications,
         "ffm_labels": ffm_labels,
