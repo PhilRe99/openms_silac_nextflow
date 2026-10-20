@@ -5,7 +5,7 @@ process PEPTIDE_INDEXER {
     container params.openms_container
     
     input:
-    tuple val(meta), path(mzml), path(idxml)
+    tuple val(meta), path(mzml), path(idparquet)
     path(database)
 
     output:
@@ -14,7 +14,7 @@ process PEPTIDE_INDEXER {
     script:
     """
     PeptideIndexer \
-        -in "${idxml}" \
+        -in "${idparquet}" \
         -fasta "${database}" \
         -out "${meta.id}.comet.indexed.idparquet" \
         -decoy_string DECOY_ \

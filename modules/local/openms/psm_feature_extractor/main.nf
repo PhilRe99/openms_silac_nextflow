@@ -5,7 +5,7 @@ process PSM_FEATURE_EXTRACTOR {
     container params.openms_container
 
     input:
-    tuple val(meta), path(mzml), path(idxml)
+    tuple val(meta), path(mzml), path(idparquet)
 
     output:
     tuple val(meta), path(mzml), 
@@ -15,7 +15,7 @@ process PSM_FEATURE_EXTRACTOR {
     script:
     """
     PSMFeatureExtractor \
-        -in "${idxml}" \
+        -in "${idparquet}" \
         -out "${meta.id}.comet.features.idparquet"
     """
 

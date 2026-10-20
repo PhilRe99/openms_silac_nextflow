@@ -5,7 +5,7 @@ process PERCOLATOR {
     container params.openms_container
 
     input:
-    tuple val(meta), path(mzml), path(idxml)
+    tuple val(meta), path(mzml), path(idparquet)
 
     output:
     tuple val(meta),
@@ -16,7 +16,7 @@ process PERCOLATOR {
     script:
     """
     PercolatorAdapter \
-        -in "${idxml}" \
+        -in "${idparquet}" \
         -out "${meta.id}.percolator.idparquet" \
         -use_subprocess true \
         -percolator_executable percolator \
