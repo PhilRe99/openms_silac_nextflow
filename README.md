@@ -98,7 +98,7 @@ profile, the corresponding executables must be installed locally.
 | SDRF validation/conversion | `openms-silac/sdrf-pipelines:dea8ba9-procps` |
 | SILAC configuration resolution | `openms-silac/python:3.11-procps` |
 | Thermo RAW conversion | `quay.io/biocontainers/thermorawfileparser:1.4.5--h05cac1d_1` |
-| OpenMS, Comet, and Percolator processes | `ghcr.io/openms/openms-tools-thirdparty:v3.6.0` |
+| OpenMS, Comet, and Percolator processes | `ghcr.io/openms/openms-tools-thirdparty@sha256:824bcdf017b96f3f4509f68395efe1ce19014be7cc2b07263ae3cb2e652dac02` |
 
 Build the two local helper images from the repository root:
 
@@ -222,6 +222,7 @@ Defaults come from [nextflow.config](nextflow.config) and
 | `--silac_chemistry` | `assets/silac_chemistry.json` | Explicit isotope definitions |
 | `--cpus` | `2` | Threads for Comet, peak picker, peptide indexer, and Percolator |
 | `--enable_qpx` | `false` | Native OpenMS QPX export |
+| `--convert_ids_to_idparquet` | `false` | Convert Percolator idXML to an idparquet directory bundle before MS1 quantification |
 
 Other processes currently retain one CPU, including `MS1LabeledWorkflow`.
 The `low_memory` profile limits execution to one task at a time across
@@ -825,6 +826,34 @@ mixing of treated and control lysates: biological changes can remain.
 
 See [the detailed analysis guide](docs/completed_run_analysis.md) for the full
 profile contract and statistical limitations.
+
+## Identification format comparison
+
+By default, identification processes write idXML and `MS1LabeledWorkflow`
+reads the rescored idXML directly. With `--convert_ids_to_idparquet`, an
+`IDFileConverter` process converts each Percolator result to a complete
+`.idparquet` directory bundle before quantification. Search and rescoring
+still use idXML. The bundle stays paired with its mzML through staging and
+the sorted experiment-wide collection; its individual tables are not passed
+as separate identification inputs.
+
+To compare against an existing duplex baseline, reuse its work directory and
+resume that baseline's run by name or session UUID:
+
+```bash
+nextflow run . -profile docker,test_duplex \
+    -w work/id_format_baseline \
+    -resume <duplex-baseline-run-name-or-session-uuid> \
+    --convert_ids_to_idparquet \
+    --outdir results/id_format_converted_duplex
+```
+
+Use `test_triplex`, the triplex baseline's resume identifier, and a separate
+output directory for the triplex comparison. Check that search and rescoring
+are cached: only conversion and MS1 quantification should execute. Preserve
+both baseline output directories and the work directory for comparison.
+This identification bundle format is separate from the optional QPX exports
+below.
 
 ## Native QPX output
 

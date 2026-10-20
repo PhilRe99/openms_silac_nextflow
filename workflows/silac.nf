@@ -6,6 +6,7 @@ include { COMET } from '../modules/local/openms/comet/main'
 include { PEPTIDE_INDEXER } from '../modules/local/openms/peptide_indexer/main'
 include { PSM_FEATURE_EXTRACTOR } from '../modules/local/openms/psm_feature_extractor/main'
 include { PERCOLATOR } from '../modules/local/openms/percolator/main'
+include { IDXML_TO_IDPARQUET } from '../modules/local/openms/idxml_to_idparquet/main'
 include { MS1_LABELED_WORKFLOW } from '../modules/local/openms/ms1_labeled_workflow/main'
 include { THERMORAWFILEPARSER } from '../modules/local/thermorawfileparser/main'
 
@@ -90,17 +91,26 @@ workflow SILAC {
         PSM_FEATURE_EXTRACTOR.out.runs
     )
 
-    //pooling for MS1labeledworkflow
-    PERCOLATOR.out.runs
+    def quantification_runs = PERCOLATOR.out.runs
+    if (params.convert_ids_to_idparquet) {
+        IDXML_TO_IDPARQUET(PERCOLATOR.out.runs)
+        quantification_runs = IDXML_TO_IDPARQUET.out.runs
+    }
+
+    // Collect complete run records and sort them before extracting paired file lists.
+    quantification_runs
         .collect(flat: false)
         .map { runs ->
-            tuple(runs[0][0].silac_labels, runs)
+            def orderedRuns = runs.sort { a, b ->
+                a[0].id.toString() <=> b[0].id.toString()
+            }
+            tuple(orderedRuns[0][0].silac_labels, orderedRuns)
         }
     .set { ms1_runs }
 
     //restructuring collected runs into form the MS1 workflow needs
     //run[1] = mzML
-    //run[2] = idXML
+    //run[2] = identification file or idparquet directory bundle
     ms1_runs.map { labels, runs ->
         tuple(
             labels,
