@@ -9,14 +9,14 @@ process PSM_FEATURE_EXTRACTOR {
 
     output:
     tuple val(meta), path(mzml), 
-        path("${meta.id}.comet.features.idXML"), emit: runs
+        path("${meta.id}.comet.features.idparquet"), emit: runs
 
     
     script:
     """
     PSMFeatureExtractor \
         -in "${idxml}" \
-        -out "${meta.id}.comet.features.idXML"
+        -out "${meta.id}.comet.features.idparquet"
     """
 
 }

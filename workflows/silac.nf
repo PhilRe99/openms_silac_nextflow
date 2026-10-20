@@ -91,12 +91,6 @@ workflow SILAC {
         PSM_FEATURE_EXTRACTOR.out.runs
     )
 
-    def quantification_runs = PERCOLATOR.out.runs
-    if (params.convert_ids_to_idparquet) {
-        IDXML_TO_IDPARQUET(PERCOLATOR.out.runs)
-        quantification_runs = IDXML_TO_IDPARQUET.out.runs
-    }
-
     // Collect complete run records and sort them before extracting paired file lists.
     quantification_runs
         .collect(flat: false)

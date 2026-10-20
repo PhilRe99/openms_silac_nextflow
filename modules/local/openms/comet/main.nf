@@ -8,7 +8,7 @@ process COMET {
     tuple val(meta), path(mzml), path(database)
 
     output:
-    tuple val(meta), path(mzml), path("${meta.id}.comet.idXML"), emit: runs
+    tuple val(meta), path(mzml), path("${meta.id}.comet.idparquet"), emit: runs
 
     script:
 
@@ -40,7 +40,7 @@ process COMET {
         -in "${mzml}" \
         -database "${database}" \
         ${args} \
-        -out "${meta.id}.comet.idXML" \
+        -out "${meta.id}.comet.idparquet" \
         -comet_executable comet.exe \
         -enzyme '${meta.enzyme.toString().replace("'", "'\"'\"'")}' \
         -fragment_mass_tolerance '${fragmentTolerance}' \
