@@ -6,7 +6,6 @@ include { COMET } from '../modules/local/openms/comet/main'
 include { PEPTIDE_INDEXER } from '../modules/local/openms/peptide_indexer/main'
 include { PSM_FEATURE_EXTRACTOR } from '../modules/local/openms/psm_feature_extractor/main'
 include { PERCOLATOR } from '../modules/local/openms/percolator/main'
-include { IDXML_TO_IDPARQUET } from '../modules/local/openms/idxml_to_idparquet/main'
 include { MS1_LABELED_WORKFLOW } from '../modules/local/openms/ms1_labeled_workflow/main'
 include { THERMORAWFILEPARSER } from '../modules/local/thermorawfileparser/main'
 
@@ -92,7 +91,7 @@ workflow SILAC {
     )
 
     // Collect complete run records and sort them before extracting paired file lists.
-    quantification_runs
+    PERCOLATOR.out.runs
         .collect(flat: false)
         .map { runs ->
             def orderedRuns = runs.sort { a, b ->

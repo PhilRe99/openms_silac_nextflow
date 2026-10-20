@@ -5,7 +5,7 @@ process MS1_LABELED_WORKFLOW {
     container params.openms_container
 
     input:
-    tuple val(labels), path(mzmls), path(idxmls)
+    tuple val(labels), path(mzmls), path(idparquets)
     path design
     path database
 
@@ -22,14 +22,14 @@ process MS1_LABELED_WORKFLOW {
     def mzmlArgs = mzmls.collect { item ->
         "'" + item.toString().replace("'", "'\"'\"'") + "'"
     }.join(' ')
-    def idxmlArgs = idxmls.collect { item ->
+    def idparquetArgs = idparquets.collect { item ->
         "'" + item.toString().replace("'", "'\"'\"'") + "'"
     }.join(' ')
 
     """
     MS1LabeledWorkflow \
         -in ${mzmlArgs} \
-        -ids ${idxmlArgs} \
+        -ids ${idparquetArgs} \
         -labels "${labels}" \
         -design "${design}" \
         -fasta "${database}" \
