@@ -7,16 +7,21 @@ runs, evaluating known mixtures, and analyzing explicitly defined biological
 contrasts. The longer-term aim is integration of the SILAC-specific work into
 quantms.
 
-The workflow runs end to end for the local E. coli duplex and triplex
-benchmarks. Native idparquet processing reproduces the checked scientific
-outputs of the idXML baselines for both subsets. Broader validation is
-ongoing: having a dataset profile or a successful search does not establish
-quantitative accuracy for that dataset.
+The default OpenMS image is now the pinned **3.7 development build**, revision
+`842adef`. Fresh local E. coli duplex and triplex runs completed through the
+whole pipeline with that image and increased quantification coverage over
+the previous 3.6 build. The earlier native-idparquet migration reproduced the
+checked idXML outputs using the old image; the subsequent OpenMS upgrade
+intentionally changes scientific behavior. Broader validation is ongoing:
+successful execution does not establish quantitative accuracy for every dataset.
 
-The pipeline description and identification-format validation were updated
-on **2026-10-20**. Historical dataset checkpoints below retain their stated
-dates. Local spectra, metadata, results, and historical reports are not all
-distributed with Git.
+The implementation and upgrade evidence were reviewed on **2026-10-20**.
+The immediate priority is fine-tuning processing tools to improve coverage
+while monitoring known-mixture accuracy. Further QPX validation, downstream
+analysis improvements, and PTM localization follow that work. See the
+[current status report](docs/NF_SILAC_OpenMS_Upgrade_Status_2026-10-20.md).
+Historical dataset checkpoints below retain their stated dates. Local
+spectra, metadata, results, and reports are not all distributed with Git.
 
 ## Contents
 
@@ -29,6 +34,7 @@ distributed with Git.
 - [Read and interpret the results](#read-and-interpret-the-results)
 - [Add a new dataset](#add-a-new-dataset)
 - [Native identification format and validation](#native-identification-format-and-validation)
+- [OpenMS upgrade and next steps](#openms-upgrade-and-next-steps)
 - [Native QPX output](#native-qpx-output)
 - [Verification and troubleshooting](#verification-and-troubleshooting)
 - [Repository layout and implementation limits](#repository-layout-and-implementation-limits)
@@ -104,7 +110,7 @@ profile, the corresponding executables must be installed locally.
 | SDRF validation/conversion | `openms-silac/sdrf-pipelines:dea8ba9-procps` |
 | SILAC configuration resolution | `openms-silac/python:3.11-procps` |
 | Thermo RAW conversion | `quay.io/biocontainers/thermorawfileparser:1.4.5--h05cac1d_1` |
-| OpenMS, Comet, and Percolator processes | `ghcr.io/openms/openms-tools-thirdparty@sha256:824bcdf017b96f3f4509f68395efe1ce19014be7cc2b07263ae3cb2e652dac02` |
+| OpenMS, Comet, and Percolator processes | `ghcr.io/openms/openms-tools-thirdparty@sha256:734197c186b23a98bdb5cb25071d28e10b125480f8d67d8aa59c76c3632c5ac0` |
 
 Build the two local helper images from the repository root:
 
@@ -120,7 +126,8 @@ The SDRF Dockerfile **requires the existing base image**
 `openms-silac/sdrf-pipelines:dea8ba9`. This repository contains the derived
 image recipe, not a recipe to build that base image from scratch. Both helper
 recipes add `procps` for Nextflow execution monitoring. The OpenMS image is
-pinned by digest and reports `3.6.0-pre-HEAD-2026-09-30`, revision `5d5cbff`.
+pinned by digest and reports `3.7.0-pre-HEAD-2026-10-19`, revision `842adef`,
+built on October 20. This is a development build, not a stable 3.7 release.
 Other images still use tags; record their digests when freezing a benchmark.
 
 Standalone analysis needs Python **3.10 or newer**. Matplotlib is optional for
@@ -231,6 +238,15 @@ Defaults come from [nextflow.config](nextflow.config) and
 | `--cpus` | `2` | Threads for Comet, peak picker, peptide indexer, Percolator, and MS1LabeledWorkflow |
 | `--enable_qpx` | `false` | Native OpenMS QPX export |
 
+The pinned MS1 workflow also defaults to partial-multiplet detection
+(`algorithm:knock_out=true`), re-quantification of undetected channels
+(`requantify=true`), theoretical peptidoform m/z for ID mapping
+(`id_mapping:mz_reference=peptide`), and no match between runs
+(`match_between_runs=false`). These are inherited OpenMS defaults recorded
+in consensusXML, not additional exposed Nextflow parameters. Keep them fixed
+when establishing a comparison baseline, then vary them explicitly during
+targeted tuning.
+
 Other processes currently retain one CPU, including `PSMFeatureExtractor`.
 The `low_memory` profile limits execution to one task at a time across
 processes; it does not set a per-task RAM limit or make a large task smaller.
@@ -287,7 +303,7 @@ or independently validated run.
 
 | Dataset | Local evidence | Main analysis |
 | --- | --- | --- |
-| PXD003327 | Completed duplex/triplex idXML and native-idparquet comparisons on 2026-10-20; older duplex fixture retained | Residue-specific mixture recovery and migration regression |
+| PXD003327 | Completed idparquet migration comparisons and fresh full-pipeline OpenMS 3.7 development runs for duplex/triplex on 2026-10-20; old outputs retained | Residue-specific mixture accuracy, coverage tuning, and regression |
 | PXD039580 | Completed six-injection historical HeLa bundle and October 13 review; not rerun in the native-idparquet comparison | Mixture accuracy, coverage, and technical reproducibility |
 | MSV000079761 | Curated yeast metadata and an analysis profile; no completed outputs in the retained review | Recovery of a 1:1 mixture after compatible inputs are prepared |
 
@@ -864,9 +880,10 @@ analysis tools consume those final outputs and the design, so they do not
 require an identification-reader change. Native identification bundles are
 separate from the optional QPX dataset described below.
 
-On 2026-10-20, both local E. coli subsets were processed through the native
-chain and compared with retained idXML baselines using the same pinned
-image, input preparation, and scientific settings:
+Before the OpenMS upgrade on 2026-10-20, both local E. coli subsets were
+processed through the native chain and compared with retained idXML baselines
+using the same **3.6 build, revision `5d5cbff`**, input preparation, and
+scientific settings. These are historical format-migration results:
 
 | Result | Duplex: idXML / idparquet | Triplex: idXML / idparquet |
 | --- | ---: | ---: |
@@ -892,6 +909,66 @@ are local artifacts and are not distributed with Git. These checks establish
 agreement for the tested subsets, rather than preservation of every
 intermediate metadata field or validation of every supported study.
 
+## OpenMS upgrade and next steps
+
+The current image was tested both as an MS1-only replacement for duplex and
+through fresh full-pipeline duplex/triplex runs. Every OpenMS task in the
+fresh runs used the new digest: all 15 duplex tasks and nine triplex tasks
+completed without failures or cached execution. Metadata helpers kept their
+separate images. Designs and resolved configurations match the old runs.
+
+| Run | Final mzTab PSM rows | Peptide forms with ratios | Protein groups with ratios |
+| --- | ---: | ---: | ---: |
+| Duplex, old image | 3,491 | 701 | 117 |
+| Duplex, new MS1 only | 3,491 | 891 | 138 |
+| Duplex, new image throughout | 3,506 | 894 | 138 |
+| Triplex, old image | 928 | 162 | 38 |
+| Triplex, new image throughout | 928 | 361 | 68 |
+
+Peptide forms distinguish modifications; entity counts differ from mzTab
+rows and from ratio cells across mixtures/channels. The full duplex upgrade
+preserves all 1,381 reported peptide ratio values from the MS1-only upgrade
+exactly and adds three. Of 220 common protein ratio values, 218 are exactly
+equal. There is no retained MS1-only triplex comparison.
+
+The large protein ratio shifts relative to the old image can be reconstructed
+from changed supporting peptide medians. This E. coli benchmark gives K-only
+and R-only peptides opposite mixing ratios, so changes in the contributing
+peptide population can move protein medians strongly. Coverage gains do not
+resolve every quantitative bias: triplex K-only M/L remains about **1.54
+against an expected 2.0**. Lost ratios are concentrated in peptides containing
+multiple K/R residues, and triplex MS1 processing takes about 117 seconds
+versus 33 seconds in the old run.
+
+The next development phase is **fine-tuning processing tools for coverage**:
+
+1. Preserve the fresh 3.7 results as the baseline and identify where accepted
+   identifications lose quantitative support, including representative
+   multi-K/R peptides and weak or missing channels.
+2. Expose the settings needed for each experiment and change one at a time.
+   Start with evidence-driven MS1 detection, mapping, and re-quantification
+   comparisons; evaluate spectrum preparation, search, and rescoring settings
+   separately when their outputs identify an upstream limitation.
+3. Compare usable peptide ratios, protein support, missingness, known-mixture
+   error, and runtime together. Assess shared and newly recovered peptides
+   separately. Keep FDR criteria fixed for initial comparisons and retain raw
+   ratios; enabling normalization or match between runs is a separate experiment.
+4. Test promising settings on duplex and triplex before extending them to
+   the HeLa mixtures and fractionated H1975 pilot.
+
+Further QPX consumer validation, downstream analysis/export improvements,
+and PTM localization are **later priorities**, not prerequisites for this
+tuning phase. Existing native QPX export remains available.
+
+The [upgrade status report](docs/NF_SILAC_OpenMS_Upgrade_Status_2026-10-20.md)
+records run identities, evidence, remaining limitations, and the tuning plan.
+The local [detailed comparison](results/openms37_validation/review/report.md)
+and adjacent `comparison.json`/`compare_runs.py` retain numerical checks and
+protein-support details. Keep their source results and work directories.
+The temporary `--openms_ms1_container` option is no longer wired into the
+pipeline; use a process-specific configuration override for isolated image
+comparisons.
+
 ## Native QPX output
 
 Add `--enable_qpx` to request QPX directly from `MS1LabeledWorkflow`:
@@ -912,6 +989,13 @@ produced directly by `MS1LabeledWorkflow`. A separate
 passed strict QPX 1.1.6 validation and cross-artifact checks within its
 documented scope. That pilot audit is separate from the idparquet migration
 tests and does not certify other datasets or consumers.
+
+The October 20 upgrade review additionally checked all 12 available QPX
+tables from old duplex, MS1-only duplex, and fresh duplex/triplex runs with
+OpenMS `ParquetDiff -schema`. These passed, as did selected reciprocal
+PSM/feature and PSM-to-mzTab run/scan checks. Independent Python consumer
+validation and full nested-quantity reconciliation remain deferred until
+after the coverage-tuning phase.
 
 ## Verification and troubleshooting
 
