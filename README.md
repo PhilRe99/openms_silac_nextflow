@@ -7,13 +7,16 @@ runs, evaluating known mixtures, and analyzing explicitly defined biological
 contrasts. The longer-term aim is integration of the SILAC-specific work into
 quantms.
 
-The workflow runs end to end for the local E. coli duplex benchmark. Broader
-validation is ongoing: having a dataset profile or a successful search does
-not establish quantitative accuracy for that dataset.
+The workflow runs end to end for the local E. coli duplex and triplex
+benchmarks. Native idparquet processing reproduces the checked scientific
+outputs of the idXML baselines for both subsets. Broader validation is
+ongoing: having a dataset profile or a successful search does not establish
+quantitative accuracy for that dataset.
 
-This README describes the implementation and available local evidence reviewed
-on **2026-10-07**. Local spectra, metadata, results, and historical reports are
-not all distributed with Git.
+The pipeline description and identification-format validation were updated
+on **2026-10-20**. Historical dataset checkpoints below retain their stated
+dates. Local spectra, metadata, results, and historical reports are not all
+distributed with Git.
 
 ## Contents
 
@@ -25,6 +28,7 @@ not all distributed with Git.
 - [Choose an analysis method](#choose-an-analysis-method)
 - [Read and interpret the results](#read-and-interpret-the-results)
 - [Add a new dataset](#add-a-new-dataset)
+- [Native identification format and validation](#native-identification-format-and-validation)
 - [Native QPX output](#native-qpx-output)
 - [Verification and troubleshooting](#verification-and-troubleshooting)
 - [Repository layout and implementation limits](#repository-layout-and-implementation-limits)
@@ -49,7 +53,7 @@ flowchart TD
     K --> M
     M --> N[PSMFeatureExtractor]
     N --> O[PercolatorAdapter]
-    O --> P[Collect paired mzML and rescored idXML records]
+    O --> P[Sort paired mzML and rescored idparquet records]
     P --> Q[MS1LabeledWorkflow]
     C --> Q
     K --> Q
@@ -73,8 +77,10 @@ The active steps are:
    every mzML entering identification; there is currently no automatic
    profile/centroid bypass.
 4. Generate a combined target-decoy FASTA, search with Comet, index peptides,
-   extract PSM features, and rescore each run with Percolator.
-5. Keep spectral files paired with their rescored identifications, then invoke
+   extract PSM features, and rescore each run with Percolator. All four
+   identification processes write native `.idparquet` directory bundles.
+5. Keep spectral files paired with their rescored bundles and sort complete
+   run records by `meta.id`, then invoke
    OpenMS `MS1LabeledWorkflow` once for the experiment, with the design and
    configured reference channel, protein FDR, fraction aggregation, and ratios.
 6. Publish scientific outputs. Run the Python analysis separately; it is not
@@ -113,9 +119,9 @@ docker build -f containers/python.Dockerfile \
 The SDRF Dockerfile **requires the existing base image**
 `openms-silac/sdrf-pipelines:dea8ba9`. This repository contains the derived
 image recipe, not a recipe to build that base image from scratch. Both helper
-recipes add `procps` for Nextflow execution monitoring. Container tags select
-versions but are not immutable digests; record image digests when freezing a
-benchmark.
+recipes add `procps` for Nextflow execution monitoring. The OpenMS image is
+pinned by digest and reports `3.6.0-pre-HEAD-2026-09-30`, revision `5d5cbff`.
+Other images still use tags; record their digests when freezing a benchmark.
 
 Standalone analysis needs Python **3.10 or newer**. Matplotlib is optional for
 plots; SciPy is optional for configured biological tests. The local `silac`
@@ -147,11 +153,13 @@ below also describe historical data locations; the storage convention does
 not move those files automatically. Nextflow accepts the D: paths through
 `--spectra_dir` and `--database`; its work directory can remain on Linux.
 
-For the newly downloaded H1975 pilot, see the
-[PXD001101 investigation and run guide](docs/pxd001101_run_guide.md). Use the
-corrected pilot linked there: the sister repository's corrupted pilot was
-removed because it lost the distinct modification columns. The SDRF copy on
-D: is older.
+For the H1975 pilot, the repository includes
+[the curated pilot SDRF](assets/metadata/PXD001101_H1975_BR1_pilot.sdrf.tsv).
+The [archived PXD001101 investigation and run guide](docs/legacy/pxd001101_run_guide.md)
+describes the original input preparation; its run status is historical. See
+the [later repository assessment](docs/NF_SILAC_Repository_Assessment_2026-10-16.md)
+for the completed pilot and scoped QPX validation. The older SDRF copy on D:
+should not replace the curated pilot.
 
 For mzML inputs:
 
@@ -197,7 +205,7 @@ results/study_run/study/
 ```
 
 The metadata files can appear before quantification finishes. Intermediate
-mzML, idXML, and executed task commands remain
+mzML, `.idparquet` directory bundles, and executed task commands remain
 under Nextflow's `work/` directory. Retain `work/` and `.nextflow/` to reuse
 matching tasks with `-resume`; cached execution is not a fresh rerun.
 
@@ -220,11 +228,10 @@ Defaults come from [nextflow.config](nextflow.config) and
 | `--isotope_error_range` | `0,3` | Expanded to Comet `0/1/2/3` |
 | `--comet_fragment_mass_tolerance` | unset | Optional fragment-bin tolerance override, always in Da |
 | `--silac_chemistry` | `assets/silac_chemistry.json` | Explicit isotope definitions |
-| `--cpus` | `2` | Threads for Comet, peak picker, peptide indexer, and Percolator |
+| `--cpus` | `2` | Threads for Comet, peak picker, peptide indexer, Percolator, and MS1LabeledWorkflow |
 | `--enable_qpx` | `false` | Native OpenMS QPX export |
-| `--convert_ids_to_idparquet` | `false` | Convert Percolator idXML to an idparquet directory bundle before MS1 quantification |
 
-Other processes currently retain one CPU, including `MS1LabeledWorkflow`.
+Other processes currently retain one CPU, including `PSMFeatureExtractor`.
 The `low_memory` profile limits execution to one task at a time across
 processes; it does not set a per-task RAM limit or make a large task smaller.
 
@@ -239,7 +246,7 @@ For a deliberate Comet bin-tolerance choice, add
 inaccurate experimental metadata in the SDRF itself. Inspect the published
 `configuration/silac_config_<run-id>.json` for the resolved value, unit,
 source (`metadata` or `explicit_override`), and original metadata. Comet
-uses that resolved value. See [configuration handling](docs/configuration.md)
+uses that resolved value. See [the configuration guide](docs/legacy/configuration.md)
 for the exact precedence and validation rules; this JSON is not a complete
 report of every tool setting.
 
@@ -273,16 +280,19 @@ or several completed trace rows does not establish successful quantification.
 
 ## Datasets and their scientific questions
 
-The three datasets currently represented by local metadata and/or
+The three datasets in the built-in
 [analysis profiles](conf/analysis_profiles.json) are listed below. Accession
 profiles encode expectations; their presence is not evidence of a completed
 or independently validated run.
 
-| Dataset | Local scope reviewed on 2026-10-07 | Main analysis |
+| Dataset | Local evidence | Main analysis |
 | --- | --- | --- |
-| PXD003327 | Completed duplex checkpoint; additional historical duplex/triplex cohort outputs | Residue-specific mixture recovery and migration regression |
-| PXD039580 | Six HeLa DDA RAW files and curated metadata; no published final mzTab/consensusXML in inspected run folders | Mixture accuracy, coverage, and technical reproducibility once quantification completes |
-| MSV000079761 | Curated yeast metadata and an analysis profile; no completed local outputs found | Recovery of a 1:1 mixture after compatible inputs are prepared |
+| PXD003327 | Completed duplex/triplex idXML and native-idparquet comparisons on 2026-10-20; older duplex fixture retained | Residue-specific mixture recovery and migration regression |
+| PXD039580 | Completed six-injection historical HeLa bundle and October 13 review; not rerun in the native-idparquet comparison | Mixture accuracy, coverage, and technical reproducibility |
+| MSV000079761 | Curated yeast metadata and an analysis profile; no completed outputs in the retained review | Recovery of a 1:1 mixture after compatible inputs are prepared |
+
+The separate PXD001101 H1975 pilot has completed local processing and a
+scoped QPX audit; it is not one of these three built-in analysis profiles.
 
 ### PXD003327: E. coli isotope mixtures
 
@@ -426,18 +436,20 @@ python bin/analyze_completed_run.py results/pxd039580_run/PXD039580 \
     --dataset PXD039580
 ```
 
-For the existing local attempt:
+For the completed historical six-file bundle:
 
 ```bash
 python bin/analyze_completed_run.py \
-    results/pxd039580_raw_all6_20261006_210459 \
+    results/pxd039580_raw_all6_qpx_20261007_131122 \
     --dataset PXD039580
 ```
 
-At review, that directory had metadata, conversion/peak-picking records, and
-completed Comet search records, but no final mzTab or consensusXML. The
-analysis therefore reports missing scientific outputs; no local accuracy or
-CV result is claimed yet.
+That bundle contains final mzTab and consensusXML under `PXD039580/`, plus
+retained analysis. The older `pxd039580_raw_all6_20261006_210459` attempt was
+incomplete and should not be used to describe the completed benchmark.
+See the [October 13 HeLa investigation](docs/legacy/status_2026-10-13_pxd039580.md)
+for the coverage and matched-precision findings. Those results predate the
+native-idparquet migration and were not regenerated in its E. coli tests.
 
 **Interpretation.** Compare raw mixture bias and coverage in `benchmark.tsv`
 and `summary.tsv`. Inspect technical CVs in `replicate_precision.tsv` and
@@ -824,36 +836,61 @@ An empty selector applies to peptides and proteins; nonempty selectors apply
 to peptides only. Do not invent an expected per-protein ratio from equal
 mixing of treated and control lysates: biological changes can remain.
 
-See [the detailed analysis guide](docs/completed_run_analysis.md) for the full
+See [the archived detailed analysis guide](docs/legacy/completed_run_analysis.md) for the full
 profile contract and statistical limitations.
 
-## Identification format comparison
+## Native identification format and validation
 
-By default, identification processes write idXML and `MS1LabeledWorkflow`
-reads the rescored idXML directly. With `--convert_ids_to_idparquet`, an
-`IDFileConverter` process converts each Percolator result to a complete
-`.idparquet` directory bundle before quantification. Search and rescoring
-still use idXML. The bundle stays paired with its mzML through staging and
-the sorted experiment-wide collection; its individual tables are not passed
-as separate identification inputs.
+Identification uses `.idparquet` natively throughout the active workflow:
 
-To compare against an existing duplex baseline, reuse its work directory and
-resume that baseline's run by name or session UUID:
+| Process | Identification input | Identification output |
+| --- | --- | --- |
+| CometAdapter | Prepared mzML plus target-decoy FASTA | `<run>.comet.idparquet` |
+| PeptideIndexer | Comet bundle plus FASTA | `<run>.comet.indexed.idparquet` |
+| PSMFeatureExtractor | Indexed bundle | `<run>.comet.features.idparquet` |
+| PercolatorAdapter | Feature-enriched bundle | `<run>.percolator.idparquet` |
+| MS1LabeledWorkflow | Ordered per-run rescored bundles, paired mzML, design, and FASTA | Final mzTab/consensusXML; optional QPX |
 
-```bash
-nextflow run . -profile docker,test_duplex \
-    -w work/id_format_baseline \
-    -resume <duplex-baseline-run-name-or-session-uuid> \
-    --convert_ids_to_idparquet \
-    --outdir results/id_format_converted_duplex
-```
+Each `.idparquet` output is a directory containing `psms.parquet`,
+`proteins.parquet`, `protein_groups.parquet`, and `search_params.parquet`.
+Nextflow passes the whole directory between processes. Each bundle remains
+paired with its mzML while complete run tuples are sorted and collected;
+`MS1LabeledWorkflow -ids` receives bundle paths, not individual table paths.
+The temporary post-Percolator conversion module and its optional parameter
+have been removed. There is no format-selection flag in the active pipeline.
 
-Use `test_triplex`, the triplex baseline's resume identifier, and a separate
-output directory for the triplex comparison. Check that search and rescoring
-are cached: only conversion and MS1 quantification should execute. Preserve
-both baseline output directories and the work directory for comparison.
-This identification bundle format is separate from the optional QPX exports
-below.
+The final mzTab and consensusXML formats are unchanged. The standalone
+analysis tools consume those final outputs and the design, so they do not
+require an identification-reader change. Native identification bundles are
+separate from the optional QPX dataset described below.
+
+On 2026-10-20, both local E. coli subsets were processed through the native
+chain and compared with retained idXML baselines using the same pinned
+image, input preparation, and scientific settings:
+
+| Result | Duplex: idXML / idparquet | Triplex: idXML / idparquet |
+| --- | ---: | ---: |
+| mzTab PSM rows | 3,491 / 3,491 | 928 / 928 |
+| mzTab peptide rows | 791 / 791 | 170 / 170 |
+| mzTab protein rows | 399 / 399 | 265 / 265 |
+| Reported peptide ratios | 953 / 953 | 324 / 324 |
+| Reported protein ratios | 182 / 182 | 76 / 76 |
+
+All compared scientific fields match exactly, including scores,
+modifications, protein coverage, assignments, ratio values, missingness,
+and support counts. Comparisons ignore row order and exclude technical
+`PSM_ID` and peptide `opt_global_feature_id` columns. These are the October
+20 runs, distinct from the older duplex fixture's 954 peptide-ratio entries.
+Identification intermediates across all four stages use 13.05× less storage
+for duplex and 12.65× less for triplex than uncompressed idXML; these runs do
+not establish runtime or memory improvements.
+
+The local [native-format comparison report](results/id_format_native_comparison/report.md)
+records scope and findings; its adjacent `report.json` and `compare.py`
+retain checksums and the reproducible comparison. Results and work directories
+are local artifacts and are not distributed with Git. These checks establish
+agreement for the tested subsets, rather than preservation of every
+intermediate metadata field or validation of every supported study.
 
 ## Native QPX output
 
@@ -869,10 +906,12 @@ directory. The current Python analyses read mzTab/consensusXML/design, not
 these Parquet files.
 
 Native export does not run strict QPX schema validation or SDRF enrichment.
-The separate `modules/local/qpx_export/main.nf` converter module is unused by
-the active workflow; its presence does not imply that `qpxc` conversion or
-validation runs. Native QPX output still needs compatibility validation for
-its intended downstream consumer.
+The unused standalone QPX converter module has been removed; QPX output is
+produced directly by `MS1LabeledWorkflow`. A separate
+[retained PXD001101 audit](results/pxd001101_qpx_validation_20261015_verified/summary.md)
+passed strict QPX 1.1.6 validation and cross-artifact checks within its
+documented scope. That pilot audit is separate from the idparquet migration
+tests and does not certify other datasets or consumers.
 
 ## Verification and troubleshooting
 
@@ -939,18 +978,17 @@ results and use distinct output namespaces when comparing parameter choices.
 | `bin/` | Active resolver and standalone analysis/export helpers |
 | `containers/` | Derived SDRF and Python helper image recipes |
 | `tests/` | Small scientific-format tests and preserved duplex summary |
-| `docs/completed_run_analysis.md` | Detailed analyzer configuration and methods |
+| `docs/legacy/completed_run_analysis.md` | Archived detailed analyzer configuration and methods |
 | `testdata/` | Local ignored E. coli subset SDRFs required by test profiles |
 | `bash_bp/` | Historical Bash reference and mixed-design examples |
-| `misc/` | Local ignored historical status notes and execution artifacts |
 | `work/`, `.nextflow/`, `results/` | Local task cache, run state, and published outputs; ignored by Git |
 
 `subworkflows/local/identification/main.nf` and
 `subworkflows/local/quantification/main.nf` are empty placeholders. The active
-workflow calls their constituent processes directly. `conf/base.config` is
-empty and not included. `bin/build_ms1_groups.py` is a Bash-era cohort helper;
-`bin/make_ms1_design.py` is unfinished. Neither enables automatic cohorting in
-the current workflow.
+workflow calls their constituent processes directly. There is no included
+`conf/base.config`; active configuration is in `nextflow.config` and
+`conf/modules.config`. Historical documents may mention earlier cohort
+helpers, but automatic cohorting is not implemented in the active workflow.
 
 The current scope does not establish broad support for arbitrary SILAC
 chemistries, DIA processing, turnover modeling, phosphosite analysis,

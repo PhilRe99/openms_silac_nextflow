@@ -103,7 +103,7 @@ workflow SILAC {
 
     //restructuring collected runs into form the MS1 workflow needs
     //run[1] = mzML
-    //run[2] = identification file or idparquet directory bundle
+    //run[2] = idparquet directory bundle
     ms1_runs.map { labels, runs ->
         tuple(
             labels,
