@@ -10,14 +10,14 @@ process PERCOLATOR {
     output:
     tuple val(meta),
         path(mzml),
-        path("${meta.id}.percolator.idXML"),
+        path("${meta.id}.percolator.idparquet"),
         emit: runs
 
     script:
     """
     PercolatorAdapter \
         -in "${idxml}" \
-        -out "${meta.id}.percolator.idXML" \
+        -out "${meta.id}.percolator.idparquet" \
         -use_subprocess true \
         -percolator_executable percolator \
         -score_type pep \
