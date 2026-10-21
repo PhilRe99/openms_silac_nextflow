@@ -256,29 +256,36 @@ Defaults come from [nextflow.config](nextflow.config) and
 
 | Parameter | Default | Meaning |
 | --- | --- | --- |
+| `--openms_peakpicking` | `false` | Opt-in `PeakPickerHiRes` step; when `false`, `ThermoRawFileParser` uses native Thermo centroiding |
+| `--peakpicking_ms_levels` | unset | Optional `-algorithm:ms_levels` override for `PeakPickerHiRes` when `--openms_peakpicking` is enabled |
 | `--psm_fdr` | `0.01` | PercolatorAdapter FDR option |
-| `--allowed_missed_cleavages` | `2` | Comet missed cleavages; also feeds the MS1 labeled-residue setting |
+| `--allowed_missed_cleavages` | `2` | Comet missed cleavages; also feeds `MS1LabeledWorkflow` `-max_nr_labelled_aas` |
 | `--protein_level_fdr_cutoff` | `0.01` | MS1 protein FDR cutoff |
 | `--silac_picked_protein_fdr` | `true` | Picked protein FDR option |
 | `--silac_fraction_aggregation` | `sum` | Protein quantification across fractions |
 | `--silac_reference_channel` | `1` | Executed reference channel, numbered from 1 |
-| `--silac_min_ratio_count` | `2` | OpenMS minimum supporting ratio count |
+| `--silac_min_ratio_count` | `1` | OpenMS minimum supporting ratio count (emits single-peptide proteins alongside `opt_global_MS1Label:protein_ratio_count`) |
 | `--silac_normalize_ratios` | `false` | OpenMS ratio normalization |
+| `--silac_knock_out` | `true` | Partial-multiplet detection (`-algorithm:knock_out`) |
+| `--silac_requantify` | `true` | Re-quantification of undetected channels (`-requantify`, active when `--silac_knock_out` is `true`) |
+| `--silac_id_mz_reference` | `peptide` | ID mapping m/z reference (`-id_mapping:mz_reference`, `peptide` or `precursor`) |
+| `--silac_match_between_runs` | `true` | Retention-time alignment and feature linking of complete unidentified multiplets across runs (`-match_between_runs`) |
 | `--instrument` | `high_res` | Comet instrument setting |
+| `--comet_max_variable_mods` | `5` | Comet maximum variable modifications per peptide (`-max_variable_mods_in_peptide`) |
 | `--isotope_error_range` | `0,3` | Expanded to Comet `0/1/2/3` |
 | `--comet_fragment_mass_tolerance` | unset | Optional fragment-bin tolerance override, always in Da |
 | `--silac_chemistry` | `assets/silac_chemistry.json` | Explicit isotope definitions |
 | `--cpus` | `2` | Threads for Comet, peak picker, peptide indexer, Percolator, and MS1LabeledWorkflow |
 | `--enable_qpx` | `false` | Native OpenMS QPX export |
 
-The pinned MS1 workflow also defaults to partial-multiplet detection
-(`algorithm:knock_out=true`), re-quantification of undetected channels
-(`requantify=true`), theoretical peptidoform m/z for ID mapping
-(`id_mapping:mz_reference=peptide`), and no match between runs
-(`match_between_runs=false`). These are inherited OpenMS defaults recorded
-in consensusXML, not additional exposed Nextflow parameters. Keep them fixed
-when establishing a comparison baseline, then vary them explicitly during
-targeted tuning.
+The four OpenMS 3.7 MS1 quantification options (`--silac_knock_out`,
+`--silac_requantify`, `--silac_id_mz_reference`, and
+`--silac_match_between_runs`) are explicitly passed to `MS1LabeledWorkflow` in
+[conf/modules.config](conf/modules.config) and recorded in `consensusXML`. Note
+that `--silac_min_ratio_count 1` and `--silac_match_between_runs true`
+intentionally override the underlying OpenMS CLI defaults (`2` and `false`) to
+maximize proteome completeness while retaining `opt_global_MS1Label:protein_ratio_count`
+for downstream filtering.
 
 Other processes currently retain one CPU, including `PSMFeatureExtractor`.
 The `low_memory` profile limits execution to one task at a time across
@@ -368,14 +375,14 @@ nextflow run . -profile docker,test_duplex -resume
 nextflow run . -profile docker,test_triplex -resume
 ```
 
-They use `testdata/PXD003327_duplex.sdrf.tsv` and
-`testdata/PXD003327_triplex.sdrf.tsv`, with spectra from
+They use `testdata/PXD003327_duplex_002da.sdrf.tsv` and
+`testdata/PXD003327_triplex_002da.sdrf.tsv` (and enable
+`openms_peakpicking = true` for the profile `.mzML` fixtures), with spectra from
 `../openms_silac_bash/data/PXD003327/mzml` and database
 `../openms_silac_bash/db/ecoli_k12_uniprot_reviewed.fasta`. The duplex subset
 has four channel rows for two files; the triplex subset has three rows for
-one file. The local `testdata/` fixtures are currently ignored by Git, so a
-fresh checkout needs these files supplied separately or `--input` overridden
-with an equivalent homogeneous SDRF.
+one file. A fresh checkout needs these local fixtures supplied separately or
+`--input` overridden with an equivalent homogeneous SDRF.
 
 Override paths when using another data layout:
 
