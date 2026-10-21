@@ -63,15 +63,20 @@ workflow SILAC {
 
     THERMORAWFILEPARSER(spectra_inputs.raw)
 
-    OPENMS_PEAK_PICKER(
-        spectra_inputs.mzml.mix(THERMORAWFILEPARSER.out.runs)
+    prepared_runs = spectra_inputs.mzml.mix(
+        THERMORAWFILEPARSER.out.runs
     )
+
+    if (params.openms_peakpicking) {
+        OPENMS_PEAK_PICKER(prepared_runs)
+        prepared_runs = OPENMS_PEAK_PICKER.out.runs
+    }
 
     GENERATE_DECOY_DATABASE(
         validated_runs.first().map { run -> file(params.database, checkIfExists: true) }
     )
 
-    OPENMS_PEAK_PICKER.out.runs
+    prepared_runs
         .combine(GENERATE_DECOY_DATABASE.out.database)
         .set { comet_input }
 

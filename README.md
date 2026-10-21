@@ -50,8 +50,10 @@ flowchart TD
     D --> F[Require one shared label chemistry]
     F --> G{Spectrum format}
     G -->|RAW| H[ThermoRawFileParser]
-    G -->|mzML| I[PeakPickerHiRes]
-    H --> I
+    G -->|mzML| T{OpenMS picking enabled?}
+    H --> T
+    T -->|yes| I[PeakPickerHiRes]
+    T -->|no| L[CometAdapter]
     J[Target FASTA] --> K[Generate reversed decoys]
     I --> L[CometAdapter]
     K --> L
@@ -79,9 +81,9 @@ The active steps are:
    that the SDRF lists as variable modifications are searched only in their
    binary group and must match the chemistry; labels annotated as fixed
    modifications are rejected.
-3. Convert Thermo RAW inputs to mzML when requested. Run `PeakPickerHiRes` on
-   every mzML entering identification; there is currently no automatic
-   profile/centroid bypass.
+3. Convert Thermo RAW inputs to mzML when requested, using native Thermo
+   centroiding by default. Supplied mzML files pass through unchanged unless
+   `--openms_peakpicking true` enables `PeakPickerHiRes` before identification.
 4. Generate a combined target-decoy FASTA, search with Comet, index peptides,
    extract PSM features, and rescore each run with Percolator. All four
    identification processes write native `.idparquet` directory bundles.
@@ -91,6 +93,38 @@ The active steps are:
    configured reference channel, protein FDR, fraction aggregation, and ratios.
 6. Publish scientific outputs. Run the Python analysis separately; it is not
    automatically called by Nextflow.
+
+Spectrum preparation follows the quantms convention: native Thermo centroiding
+during RAW conversion, with standalone OpenMS picking disabled by default.
+`thermo_peakpicking` is a local control over ThermoRawFileParser's `-p` argument;
+it has no effect on supplied mzML files. `openms_peakpicking` enables the
+OpenMS step for both converted and supplied mzML files.
+
+| Input / route | Parameters |
+| --- | --- |
+| Thermo RAW, native centroiding | Defaults: `--thermo_peakpicking true --openms_peakpicking false` |
+| Thermo RAW, previous OpenMS preparation | `--thermo_peakpicking false --openms_peakpicking true` |
+| Already centroided mzML | `--openms_peakpicking false` |
+| High-resolution profile mzML | `--openms_peakpicking true` |
+
+`--peakpicking_ms_levels 2` restricts the enabled OpenMS step to MS2; leaving
+it unset uses OpenMS automatic detection. This parameter does not configure
+Thermo-native centroiding. In automatic mode, OpenMS skips centroided spectra;
+explicitly selecting an already centroided MS level can fail. Choose the
+preparation route to suit the input representation and instrument resolution.
+
+The `test_duplex` and `test_triplex` profiles explicitly enable OpenMS picking
+for their profile mzML fixtures. Command-line arguments override that setting.
+To repeat the duplex comparison:
+
+```bash
+nextflow run . -profile docker,test_duplex \
+    --outdir results/ms_levels_experiment/duplex_auto -resume
+
+nextflow run . -profile docker,test_duplex \
+    --peakpicking_ms_levels 2 \
+    --outdir results/ms_levels_experiment/duplex_ms2_only -resume
+```
 
 The active workflow accepts **one compatible SILAC chemistry per invocation**.
 A mixture of duplex and triplex runs is rejected. Historical cohort outputs
