@@ -10,13 +10,10 @@ process THERMORAWFILEPARSER {
     tuple val(meta), path("${meta.id}.mzML"), emit: runs
 
     script:
-    def peakPickingArgs = params.thermo_peakpicking ? '' : '-p'
-
     """
     ThermoRawFileParser.sh \\
         -i="${raw}" \\
         -b="${meta.id}.mzML" \\
-        -f=2 \\
-        ${peakPickingArgs}
+        -f=2
     """
 }

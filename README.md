@@ -96,14 +96,13 @@ The active steps are:
 
 Spectrum preparation follows the quantms convention: native Thermo centroiding
 during RAW conversion, with standalone OpenMS picking disabled by default.
-`thermo_peakpicking` is a local control over ThermoRawFileParser's `-p` argument;
-it has no effect on supplied mzML files. `openms_peakpicking` enables the
-OpenMS step for both converted and supplied mzML files.
+ThermoRawFileParser uses its default native peak picking during conversion.
+`openms_peakpicking` enables the OpenMS step for both converted and supplied
+mzML files.
 
 | Input / route | Parameters |
 | --- | --- |
-| Thermo RAW, native centroiding | Defaults: `--thermo_peakpicking true --openms_peakpicking false` |
-| Thermo RAW, previous OpenMS preparation | `--thermo_peakpicking false --openms_peakpicking true` |
+| Thermo RAW, native centroiding | Default: `--openms_peakpicking false` |
 | Already centroided mzML | `--openms_peakpicking false` |
 | High-resolution profile mzML | `--openms_peakpicking true` |
 
