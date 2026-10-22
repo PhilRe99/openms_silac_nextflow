@@ -1193,6 +1193,258 @@ are saved as `thesis_results/2026-10-22/synthetic_pxd003327_noise10_*.tsv`.
 The clean baseline remains unchanged. Further issues should be added as separate
 documented steps, after inspecting this comparison.
 
+### Second issue: an MS1 intensity range
+
+`bin/legacy/add_synthetic_ms1_dynamic_range.py` copies the noise-only fixture and
+scales all MS1 isotope peaks and channels of each peptide by one common factor.
+The same noise realization and K/R ratios are retained. Five bands target a
+noise-free weakest-channel monoisotopic apex of 100, 1,000, 10,000, 100,000 or
+1,000,000 intensity units. Each contains 50 K and 50 R peptides, assigned with
+seed 328, so each band has 200 expected ratios. This is **one triplex file** with
+different peptide abundances, all retaining their original channel proportions.
+
+The broad scale is informed by 212 MS1 scans sampled across the real
+`Chris_Ecoli_1-2-4.mzML`: pooled positive peak intensities have median 36,574,
+10th percentile 356, and 99th percentile 1,734,407. These are individual peaks,
+not peptide apex estimates. The balanced synthetic bands deliberately probe the
+existing 1,000-intensity cutoff; they are not a fitted biological abundance
+distribution. Sampling details are retained in
+`results/synthetic_pxd003327_dynamic_range_comparison/real_intensity_context.json`.
+
+No peaks are removed from the input. MS2 spectra, precursor metadata, masses,
+RTs and chromatography stay fixed. Consequently this tests MS1 quantification
+thresholds even when weak precursors have strong, scheduled MS/MS. It does not
+yet simulate realistic DDA losses or declining signal-to-background ratio:
+proportional noise still has 10% CV and no additive background is introduced.
+
+Use the same pinned pyOpenMS container and workspace mount as above, with:
+
+```bash
+python bin/legacy/add_synthetic_ms1_dynamic_range.py
+```
+
+Run and score the unchanged pipeline:
+
+```bash
+nextflow -log results/synthetic_pxd003327_dynamic_range_validation/nextflow.log run . \
+    -profile docker \
+    --input testdata/synthetic_pxd003327_triplex_dynamic_range/synthetic_PXD003327_triplex.sdrf.tsv \
+    --mzml_dir testdata/synthetic_pxd003327_triplex_dynamic_range \
+    --database ../openms_silac_bash/db/ecoli_k12_uniprot_reviewed.fasta \
+    --outdir results/synthetic_pxd003327_dynamic_range_validation \
+    -with-trace results/synthetic_pxd003327_dynamic_range_validation/trace.tsv
+
+python bin/legacy/create_synthetic_pxd003327.py \
+    --outdir testdata/synthetic_pxd003327_triplex_dynamic_range \
+    --check-results results/synthetic_pxd003327_dynamic_range_validation/synthetic_PXD003327_triplex
+# A nonzero score exit is expected if any ratio is missing or outside tolerance.
+conda run -n silac python bin/legacy/plot_synthetic_ms1_dynamic_range.py
+```
+
+The input's `intensity_assignment.tsv` records each peptide's band and common
+scale. Its truth table updates absolute apex intensities while preserving
+`ratio_to_light` and relative `mixture_amount`. `dynamic_range_audit.json`
+records the read-back verification of all 549,000 scaled MS1 peaks and 10,500
+unchanged MS2 spectra. The two-page PDF and PNG plots go to
+`results/synthetic_pxd003327_dynamic_range_comparison/`; numerical plot tables
+alone go to `thesis_results/synthetic_pxd003327_dynamic_range/2026-10-22/`.
+The plots compare identical peptide subsets across clean, noise-only, and
+dynamic-range conditions. Missing ratios remain in all coverage and acceptance
+denominators. Error distributions describe recovered ratios only.
+
+The completed 2026-10-22 run passed all eight pipeline tasks and input schema
+and semantic validation. Executed MS1 settings match both preceding runs.
+
+| Weakest monoisotopic apex | Recovered / 200 expected ratios | Within 1.1-fold / 200 |
+| --- | --- | --- |
+| 100 | 0 | 0 |
+| 1,000 | 11 | 11 |
+| 10,000 | 200 | 197 |
+| 100,000 | 200 | 200 |
+| 1,000,000 | 200 | 198 |
+
+Overall, 611/1,000 ratios were recovered and 606/1,000 passed tolerance, with no
+unexpected quantified peptides. The score deliberately fails the original
+all-ratios criterion. Near-threshold recovery is incomplete; all 11 recovered
+ratios at intensity 1,000 are R M/L, where the light and medium channels exceed
+the weakest heavy-channel intensity. Bright bands retain full coverage, with
+five inaccurate ratios across those bands. The main loss here is missingness,
+which would be hidden by examining recovered-ratio errors alone. These coarse
+bands bracket a transition; they do not estimate a precise detection limit.
+
+### Third issue: positive additive MS1 background
+
+`bin/legacy/add_synthetic_ms1_background.py` starts with the intensity-range
+fixture, retaining its proportional noise and latent K/R signal ratios. One
+centroid-space background model adds independent exponential intensities with
+mean 500 at each existing MS1 peak, representing unresolved background, and
+1,000 uniformly positioned background centroids per MS1 scan over m/z 400–1100,
+with intensities from the same distribution. Seed 329 fixes the realization.
+The mean is below the unchanged 1,000-intensity cutoff; occasional background
+values exceed it. This is an illustrative stress level, not an empirical
+estimate of PXD003327 detector noise.
+
+All 549,000 original MS1 centroids remain at their original positions; measured
+intensities now contain a nonnegative background contribution. The latent
+signal, truth table, SDRF and intensity assignments remain unchanged. All
+10,500 MS2 spectra, precursor metadata, scan identities and RTs are preserved.
+Read-back validation replays every seeded addition and verifies these controls
+in the serialized mzML. The input records this in `background_audit.json`.
+
+This is one new background condition in **one triplex mzML**, under
+`testdata/synthetic_pxd003327_triplex_background/`. Unresolved additions occur
+only where original centroids exist, including their weak chromatographic
+tails. Random centroids do not form coherent contaminant isotope envelopes.
+These choices isolate a simple positive additive background; they do not model
+profile spectra, peak picking, realistic chemical interference or DDA losses.
+
+Generate with the pinned pyOpenMS container and workspace mount used above,
+replacing the generator command with:
+
+```bash
+python bin/legacy/add_synthetic_ms1_background.py
+```
+
+Run and score using the existing scientific settings:
+
+```bash
+nextflow -log results/synthetic_pxd003327_background_validation/nextflow.log run . \
+    -profile docker \
+    --input testdata/synthetic_pxd003327_triplex_background/synthetic_PXD003327_triplex.sdrf.tsv \
+    --mzml_dir testdata/synthetic_pxd003327_triplex_background \
+    --database ../openms_silac_bash/db/ecoli_k12_uniprot_reviewed.fasta \
+    --outdir results/synthetic_pxd003327_background_validation \
+    -with-trace results/synthetic_pxd003327_background_validation/trace.tsv
+
+python bin/legacy/create_synthetic_pxd003327.py \
+    --outdir testdata/synthetic_pxd003327_triplex_background \
+    --check-results results/synthetic_pxd003327_background_validation/synthetic_PXD003327_triplex
+# Nonzero accuracy exit means missing/out-of-tolerance or unexpected ratios.
+conda run -n silac python bin/legacy/compare_synthetic_ms1_background.py
+```
+
+The comparison checks identical executed MS1 settings and truth populations.
+It saves recovery and signed-error plots as PNG and a two-page PDF under
+`results/synthetic_pxd003327_background_comparison/`. Numerical plot TSVs alone
+go to `thesis_results/synthetic_pxd003327_background/2026-10-22/`, including
+paired ratios identifying losses, gains and retained results. Missing ratios
+count against recovery and acceptance; error distributions summarize recovered
+ratios only, whose membership may change after background is introduced.
+
+The completed 2026-10-22 run passed all eight pipeline tasks and input schema
+and semantic validation. Executed Comet, Percolator and MS1 command files are
+identical to the preceding intensity-range run. The comparison shows:
+
+| Latent weakest monoisotopic apex | Recovered, before / background | Within 1.1-fold, before / background |
+| --- | --- | --- |
+| 100 | 0 / 0 | 0 / 0 |
+| 1,000 | 11 / 106 | 11 / 4 |
+| 10,000 | 200 / 200 | 197 / 164 |
+| 100,000 | 200 / 200 | 200 / 200 |
+| 1,000,000 | 200 / 200 | 198 / 198 |
+
+Each row has 200 expected ratios. Overall recovery increases from 611 to 706,
+while ratios passing tolerance decrease from 606 to 566 out of 1,000. There
+are 609 retained ratios, 2 losses, 97 gains and 292 missing in both runs; neither
+run has unexpected quantified peptides. The accuracy score remains a deliberate
+failure of the original all-ratios criterion.
+
+The additional reported weak ratios mostly fail tolerance. At intensity 10,000,
+where all 200 ratios are recovered in both runs, the same-peptide comparison
+shows lower K ratios and higher R ratios after adding background, consistent
+with compression toward 1. The two brightest bands retain their acceptance
+counts. This demonstrates why coverage alone is insufficient under this
+additive model. `paired_summary.tsv` separates changes among retained ratios
+from changes in which peptides were recovered. These observations describe one
+illustrative background realization, not an empirical instrument performance
+estimate.
+
+### Fourth issue: coherent interference in the heavy channel
+
+`bin/legacy/add_synthetic_ms1_interference.py` starts with the background fixture
+and adds coherent contaminant envelopes to 250 of its 500 target peptides.
+Each class/intensity cell has 25 affected peptides and 25 controls. Selection
+uses seed 330 among peptides with a suitable near-isobaric contaminant; 47–50
+of the 50 peptides per cell are eligible. Controls include remaining eligible
+and ineligible peptides, so the principal evidence is the paired pre/post
+comparison of each peptide, with controls checked separately.
+
+Contaminants are actual unlabeled tryptic sequences from the same E. coli
+FASTA, excluding target sequences and I/L equivalents. The pool allows up to
+two missed cleavages and fixed carbamidomethyl C. Six-isotope envelopes are
+computed from their chemical formulas. Their monoisotopic m/z must be within
+10 ppm of the target heavy channel, and each corresponding isotope must be
+within 0.005 Da. The selected contaminant has charge 2, envelope apex intensity
+50% of the target's latent heavy envelope, Gaussian sigma 10 seconds and an
+RT apex four seconds later than the target.
+
+Unresolved contributions are summed at the existing heavy centroids, truncated
+to the target's six-sigma support. No centroid mass shift or profile spectrum
+is simulated. Contaminants have no new MS/MS spectra and are separate MS1-only
+additions, outside the defined target SILAC mixture. Target L:M:H truth stays
+K 1:2:4 and R 4:2:1. This deliberately constructed overlap tests quantification;
+it does not estimate real contaminant prevalence, labeling or DDA behavior.
+
+The result is **one triplex file** in
+`testdata/synthetic_pxd003327_triplex_interference/`. Its
+`interference_assignment.tsv` records target and contaminant sequences, masses,
+isotope fractions, profiles and cohort membership. `interference_audit.json`
+verifies all 91,500 targeted heavy-centroid additions, 4,617,500 unchanged other
+MS1 centroids, and 10,500 unchanged MS2 spectra after serialization. Background,
+m/z/RT/scan identities, precursor metadata, truth, SDRF and intensity bands
+are preserved.
+
+Generate using the same pinned container and workspace mount as above, also
+mounting the original target FASTA read-only at `/reference/ecoli.fasta`:
+
+```bash
+python bin/legacy/add_synthetic_ms1_interference.py --fasta /reference/ecoli.fasta
+```
+
+Run the unchanged pipeline and score its stored ratios:
+
+```bash
+nextflow -log results/synthetic_pxd003327_interference_validation/nextflow.log run . \
+    -profile docker \
+    --input testdata/synthetic_pxd003327_triplex_interference/synthetic_PXD003327_triplex.sdrf.tsv \
+    --mzml_dir testdata/synthetic_pxd003327_triplex_interference \
+    --database ../openms_silac_bash/db/ecoli_k12_uniprot_reviewed.fasta \
+    --outdir results/synthetic_pxd003327_interference_validation \
+    -with-trace results/synthetic_pxd003327_interference_validation/trace.tsv
+
+python bin/legacy/create_synthetic_pxd003327.py \
+    --outdir testdata/synthetic_pxd003327_triplex_interference \
+    --check-results results/synthetic_pxd003327_interference_validation/synthetic_PXD003327_triplex
+# The original all-ratios accuracy criterion intentionally fails.
+conda run -n silac python bin/legacy/compare_synthetic_ms1_interference.py
+```
+
+The completed 2026-10-22 run passed all eight pipeline tasks and input schema
+and semantic validation. Executed Comet, Percolator and MS1 command files match
+the background-only run. No unexpected peptides were quantified.
+
+| Cohort | Recovered, before / after | Within 1.1-fold, before / after |
+| --- | --- | --- |
+| Affected, 500 expected ratios | 348 / 367 | 280 / 145 |
+| Controls, 500 expected ratios | 358 / 358 | 286 / 286 |
+| Overall, 1,000 expected ratios | 706 / 725 | 566 / 431 |
+
+All 358 recovered control ratios are numerically identical before and after.
+Among 171 affected H/L ratios recovered in both runs, the median paired
+increase is 45.71%. Affected M/L ratios have median paired change zero, though
+some individual M/L results and recovery change through multiplet processing.
+At each of the two brightest bands, all 100 affected ratios are recovered but
+only 50 pass tolerance after interference (100 and 99 passed before). Strong
+signals therefore do not guarantee accurate ratios when unresolved heavy
+signal is added. The single perturbation demonstrates susceptibility under
+this overlap model, rather than an empirically estimated real-data error rate.
+
+The two-page PDF and PNG plots are under
+`results/synthetic_pxd003327_interference_comparison/`. Numerical plot TSVs
+alone are under `thesis_results/synthetic_pxd003327_interference/2026-10-22/`,
+including paired records and summaries. Missing ratios stay in recovery and
+acceptance denominators; ratio-error distributions describe recovered values.
+
 ## Verification and troubleshooting
 
 To preview disposable execution files, run `bash bin/cleanup_run.sh`.
