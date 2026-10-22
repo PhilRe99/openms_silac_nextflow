@@ -22,7 +22,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import export_silac_ratios as exporter
-import silac_qc as qc
+import bin.legacy.silac_qc as qc
 
 
 ROOT = Path(__file__).resolve().parents[1]

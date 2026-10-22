@@ -8,6 +8,9 @@ tests/
 assets/
 misc/
 thesis_results/
+bin/legacy/
+
+conf/pxd003327*
 
 # Keep standalone scientific analysis documentation and regression fixtures.
 

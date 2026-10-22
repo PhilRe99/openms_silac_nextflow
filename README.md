@@ -264,12 +264,12 @@ Defaults come from [nextflow.config](nextflow.config) and
 | `--silac_picked_protein_fdr` | `true` | Picked protein FDR option |
 | `--silac_fraction_aggregation` | `sum` | Protein quantification across fractions |
 | `--silac_reference_channel` | `1` | Executed reference channel, numbered from 1 |
-| `--silac_min_ratio_count` | `1` | OpenMS minimum supporting ratio count (emits single-peptide proteins alongside `opt_global_MS1Label:protein_ratio_count`) |
+| `--silac_min_ratio_count` | `2` | OpenMS minimum supporting ratio count (set to `1` to emit single-peptide proteins alongside `opt_global_MS1Label:protein_ratio_count`) |
 | `--silac_normalize_ratios` | `false` | OpenMS ratio normalization |
 | `--silac_knock_out` | `true` | Partial-multiplet detection (`-algorithm:knock_out`) |
 | `--silac_requantify` | `true` | Re-quantification of undetected channels (`-requantify`, active when `--silac_knock_out` is `true`) |
 | `--silac_id_mz_reference` | `peptide` | ID mapping m/z reference (`-id_mapping:mz_reference`, `peptide` or `precursor`) |
-| `--silac_match_between_runs` | `true` | Retention-time alignment and feature linking of complete unidentified multiplets across runs (`-match_between_runs`) |
+| `--silac_match_between_runs` | `false` | Retention-time alignment and feature linking of complete unidentified multiplets across runs (`-match_between_runs`) |
 | `--instrument` | `high_res` | Comet instrument setting |
 | `--comet_max_variable_mods` | `5` | Comet maximum variable modifications per peptide (`-max_variable_mods_in_peptide`) |
 | `--isotope_error_range` | `0,3` | Expanded to Comet `0/1/2/3` |
@@ -281,11 +281,13 @@ Defaults come from [nextflow.config](nextflow.config) and
 The four OpenMS 3.7 MS1 quantification options (`--silac_knock_out`,
 `--silac_requantify`, `--silac_id_mz_reference`, and
 `--silac_match_between_runs`) are explicitly passed to `MS1LabeledWorkflow` in
-[conf/modules.config](conf/modules.config) and recorded in `consensusXML`. Note
-that `--silac_min_ratio_count 1` and `--silac_match_between_runs true`
-intentionally override the underlying OpenMS CLI defaults (`2` and `false`) to
-maximize proteome completeness while retaining `opt_global_MS1Label:protein_ratio_count`
-for downstream filtering.
+[conf/modules.config](conf/modules.config) and recorded in `consensusXML`. By
+default, `--silac_min_ratio_count 2` and `--silac_match_between_runs false`
+match the underlying OpenMS CLI defaults for controlled quantification quality;
+`--silac_min_ratio_count 1` and `--silac_match_between_runs true` remain
+available as explicit completeness overrides (with
+`opt_global_MS1Label:protein_ratio_count` retained in `mzTab` for downstream
+filtering).
 
 Other processes currently retain one CPU, including `PSMFeatureExtractor`.
 The `low_memory` profile limits execution to one task at a time across
@@ -1036,6 +1038,160 @@ OpenMS `ParquetDiff -schema`. These passed, as did selected reciprocal
 PSM/feature and PSM-to-mzTab run/scan checks. Independent Python consumer
 validation and full nested-quantity reconciliation remain deferred until
 after the coverage-tuning phase.
+
+## Synthetic PXD003327 triplex benchmark
+
+This fixture is **one triplex mzML file**, using the same target FASTA and
+residue-specific mixture expectations as the PXD003327 `Chris_Ecoli_1-2-4` run:
+
+| Peptide class | Light | Medium | Heavy | Expected M/L | Expected H/L |
+| --- | --- | --- | --- | --- | --- |
+| Exactly one K, no R | 1 | 2 | 4 | 2 | 4 |
+| Exactly one R, no K | 4 | 2 | 1 | 0.5 | 0.25 |
+
+All peptides in a class have the same expected ratios. There are no protein-wise
+ratio groups. The file contains 125 proteins represented by four unique tryptic
+peptides each: **250 single-K and 250 single-R peptides**, all in one acquisition.
+Medium is Lys4/Arg6; heavy is Lys8/Arg10. Accuracy is assessed separately for K
+and R peptides. A universal expected protein ratio is not assigned, since each
+protein contributes peptides with different residue-specific expectations.
+
+[create_synthetic_pxd003327.py](bin/legacy/create_synthetic_pxd003327.py) creates the
+mzML, a matching three-row SDRF, and a per-peptide/channel truth table. It checks
+its mixture definition against `conf/analysis_profiles.json`. It uses Gaussian
+elution profiles, chemically labeled isotope envelopes and b/y MS/MS spectra;
+the normal pipeline performs identification and quantification without supplied
+IDs. Unassigned background MS/MS spectra provide negative search candidates.
+MS1 signals are idealized: no detector noise, incomplete labeling, missing
+channels, mass errors or overlapping isotope envelopes are simulated. These are
+controlled software inputs, not empirical proof of instrument accuracy or FDR.
+
+Generate the fixture from the repository root (output must be empty):
+
+```bash
+docker run --rm --user "$(id -u):$(id -g)" \
+    -v "$PWD:/work" \
+    -v "$PWD/../openms_silac_bash/db/ecoli_k12_uniprot_reviewed.fasta:/reference/ecoli.fasta:ro" \
+    -w /work --entrypoint python \
+    quay.io/biocontainers/pyopenms@sha256:52898ff11afbd6c84995c9a705187d39e9dc604b407c976c47ad3b01252f2b6b \
+    bin/legacy/create_synthetic_pxd003327.py --fasta /reference/ecoli.fasta
+```
+
+Files are under `testdata/synthetic_pxd003327_triplex/`:
+
+- `synthetic_PXD003327_triplex.mzML`: the single simulated acquisition.
+- `synthetic_PXD003327_triplex.sdrf.tsv`: metadata for its three channels.
+- `synthetic_PXD003327_triplex.truth.tsv`: actual channel amounts, expected
+  ratios, sequence/protein, m/z, isotope fractions, RT and signal intensity.
+- `manifest.json`: mixture, seed, chemistry/generation settings and checksums.
+
+The 125-protein default accommodates the pipeline's 1% protein FDR cutoff,
+which uses a decoy pseudocount. It does not define a protein-ratio benchmark.
+Run the existing pipeline, keeping ratio normalization disabled:
+
+```bash
+mkdir -p results/synthetic_pxd003327_triplex_validation
+nextflow -log results/synthetic_pxd003327_triplex_validation/nextflow.log run . \
+    -profile docker \
+    --input testdata/synthetic_pxd003327_triplex/synthetic_PXD003327_triplex.sdrf.tsv \
+    --mzml_dir testdata/synthetic_pxd003327_triplex \
+    --database ../openms_silac_bash/db/ecoli_k12_uniprot_reviewed.fasta \
+    --outdir results/synthetic_pxd003327_triplex_validation
+
+python bin/legacy/create_synthetic_pxd003327.py \
+    --check-results results/synthetic_pxd003327_triplex_validation/synthetic_PXD003327_triplex
+```
+
+The check writes `accuracy/peptide_accuracy.tsv`, `accuracy/summary.tsv`, and
+`accuracy/summary.json` within that completed result directory. It compares the
+stored raw peptide ratios with the full simulated population (including missing
+peptides), using a symmetric 1.1-fold tolerance. The output has four groups:
+K M/L, K H/L, R M/L, and R H/L. A nonzero exit status indicates a failed check.
+
+The completed **2026-10-22** run recovered all 500 peptides and all 1,000
+expected ratios at the existing pipeline settings:
+
+| Peptide class | Comparison | Expected ratio | Median recovered ratio | Recovered | Maximum absolute relative error |
+| --- | --- | --- | --- | --- | --- |
+| Single-K | M/L | 2 | 2.0004 | 250/250 | 0.027% |
+| Single-K | H/L | 4 | 4.1269 | 250/250 | 4.22% |
+| Single-R | M/L | 0.5 | 0.5140 | 250/250 | 3.91% |
+| Single-R | H/L | 0.25 | 0.2586 | 250/250 | 4.83% |
+
+The input mzML passed OpenMS schema and semantic validation. Independent
+extraction of its actual binary MS1 arrays verified all 1,500 peptide/channel
+signals against the intended areas, with maximum relative area error
+`2.05e-8`. The output-ratio check passed its symmetric 1.1-fold criterion with
+no unexpected quantified peptides. This applies to the idealized fixture only.
+
+Plot this single-file benchmark with:
+
+```bash
+conda run -n silac python bin/legacy/plot_synthetic_pxd003327.py
+```
+
+The recovered-ratio histograms and signed-error plot are saved as PNG and PDF,
+with a combined two-page PDF, under `results/synthetic_pxd003327_triplex_plots/`.
+Numerical plot tables are preserved separately as
+`thesis_results/synthetic_pxd003327_triplex/2026-10-22/synthetic_pxd003327_triplex_{ratios,summary}.tsv`.
+K and R peptide classes are always plotted separately; no protein-ratio
+expectation is pooled across them.
+
+The earlier synthetic ratio-ladder files and plots are retained under
+`testdata/synthetic_silac/` and `results/synthetic_silac_validation/`; those use a
+different design and must not be interpreted as this PXD003327-matched mixture.
+
+### Add one issue at a time: first MS1 intensity noise
+
+The first controlled perturbation adds **only proportional MS1 intensity noise**
+to a copy of the clean triplex. Each existing MS1 peak receives an independent
+positive lognormal multiplier with mean 1 and CV 0.10 (seed 327). This is an
+illustrative stress level, not an empirically calibrated PXD003327 noise model.
+No background peaks, mass errors, chromatography changes or labeling impurities
+are added. All 10,500 MS2 spectra, all m/z/RT/scan identities, and the original
+latent truth/SDRF are preserved; the read-back checks are in `noise_audit.json`.
+
+The noisy input is `testdata/synthetic_pxd003327_triplex_noise10/`, and its
+completed pipeline output is `results/synthetic_pxd003327_noise10_validation/`.
+The executed MS1 scientific settings match the clean baseline. On 2026-10-22:
+
+| Comparison | Recovered, clean / noisy | Within 1.1-fold, clean / noisy | 90th percentile absolute error, clean / noisy |
+| --- | --- | --- | --- |
+| K M/L | 250 / 250 | 250 / 250 | 0.024% / 5.45% |
+| K H/L | 250 / 250 | 250 / 248 | 3.87% / 5.81% |
+| R M/L | 250 / 250 | 250 / 249 | 3.52% / 5.45% |
+| R H/L | 250 / 250 | 250 / 245 | 4.34% / 6.64% |
+
+All 1,000 ratios are still recovered, but only 992 pass the unchanged tolerance.
+Maximum absolute error rises from 4.83% to 12.18%. Some median absolute errors
+decrease while the distributions broaden; a smaller median alone is not
+evidence of improved robustness. This is one paired perturbation of the same
+mixture, not an estimate of reproducibility over independent injections.
+
+To reproduce the first perturbation, use the same pinned pyOpenMS container and
+workspace mount as above, replacing the generator command with:
+
+```bash
+python bin/legacy/add_synthetic_ms1_noise.py
+```
+
+Run the normal pipeline with `--input` and `--mzml_dir` pointing to that noise
+directory and `--outdir results/synthetic_pxd003327_noise10_validation`. Score and
+plot the result with:
+
+```bash
+python bin/legacy/create_synthetic_pxd003327.py \
+    --outdir testdata/synthetic_pxd003327_triplex_noise10 \
+    --check-results results/synthetic_pxd003327_noise10_validation/synthetic_PXD003327_triplex
+# The score command exits nonzero for the eight out-of-tolerance ratios.
+conda run -n silac python bin/legacy/compare_synthetic_ms1_noise.py
+```
+
+The paired PNG/PDF comparison and audit are under
+`results/synthetic_pxd003327_noise10_comparison/`. Numerical plot tables alone
+are saved as `thesis_results/2026-10-22/synthetic_pxd003327_noise10_*.tsv`.
+The clean baseline remains unchanged. Further issues should be added as separate
+documented steps, after inspecting this comparison.
 
 ## Verification and troubleshooting
 
