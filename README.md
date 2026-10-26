@@ -19,7 +19,8 @@ The implementation and upgrade evidence were reviewed on **2026-10-20**.
 The immediate priority is fine-tuning processing tools to improve coverage
 while monitoring known-mixture accuracy. Further QPX validation, downstream
 analysis improvements, and PTM localization follow that work. See the
-[current status report](docs/NF_SILAC_OpenMS_Upgrade_Status_2026-10-20.md).
+[current status report](docs/NF_SILAC_Project_Status_2026-10-22.md) and the
+[October 20 upgrade status report](docs/legacy/NF_SILAC_OpenMS_Upgrade_Status_2026-10-20.md).
 Historical dataset checkpoints below retain their stated dates. Local
 spectra, metadata, results, and reports are not all distributed with Git.
 
@@ -197,7 +198,7 @@ For the H1975 pilot, the repository includes
 [the curated pilot SDRF](assets/metadata/PXD001101_H1975_BR1_pilot.sdrf.tsv).
 The [archived PXD001101 investigation and run guide](docs/legacy/pxd001101_run_guide.md)
 describes the original input preparation; its run status is historical. See
-the [later repository assessment](docs/NF_SILAC_Repository_Assessment_2026-10-16.md)
+the [later repository assessment](docs/legacy/NF_SILAC_Repository_Assessment_2026-10-16.md)
 for the completed pilot and scoped QPX validation. The older SDRF copy on D:
 should not replace the curated pilot.
 
@@ -270,6 +271,12 @@ Defaults come from [nextflow.config](nextflow.config) and
 | `--silac_requantify` | `true` | Re-quantification of undetected channels (`-requantify`, active when `--silac_knock_out` is `true`) |
 | `--silac_id_mz_reference` | `peptide` | ID mapping m/z reference (`-id_mapping:mz_reference`, `peptide` or `precursor`) |
 | `--silac_match_between_runs` | `false` | Retention-time alignment and feature linking of complete unidentified multiplets across runs (`-match_between_runs`) |
+| `--silac_rt_band` | `0.0` | MS1 multiplet detection RT band in seconds (`-algorithm:rt_band`) |
+| `--silac_averagine_similarity_scaling` | `0.95` | MS1 averagine similarity scaling (`-algorithm:averagine_similarity_scaling`) |
+| `--silac_intensity_cutoff` | `1000.0` | MS1 multiplet detection intensity cutoff (`-algorithm:intensity_cutoff`) |
+| `--silac_detection_mz_tolerance` | `6.0` | MS1 multiplet detection m/z tolerance in ppm (`-algorithm:mz_tolerance`) |
+| `--silac_id_rt_tolerance` | `5.0` | MS1 ID-mapping RT tolerance in seconds (`-id_mapping:rt_tolerance`) |
+| `--silac_id_mz_tolerance` | `20.0` | MS1 ID-mapping m/z tolerance in ppm (`-id_mapping:mz_tolerance`) |
 | `--instrument` | `high_res` | Comet instrument setting |
 | `--comet_max_variable_mods` | `5` | Comet maximum variable modifications per peptide (`-max_variable_mods_in_peptide`) |
 | `--isotope_error_range` | `0,3` | Expanded to Comet `0/1/2/3` |
@@ -641,14 +648,14 @@ not a biological conclusion or a certificate of successful pipeline completion.
 | Tool | Use it for | Scope |
 | --- | --- | --- |
 | `bin/analyze_completed_run.py` | Normal analysis entry point; discovery, export, QC, configured expectations, replicates, and paired effects | Handles independent bundles and partial outputs |
-| `bin/export_silac_ratios.py` | Reusable peptide/protein TSVs for notebooks or other tools | Validates matching sources and preserves stored quantities |
-| `bin/silac_qc.py` | Audit existing exported tables against original files | Rejects stale/altered tables; descriptive QC and optional peptide benchmark |
-| `bin/analyze_ms1_mztab.py` | Quick terminal check of the original E. coli benchmark | Assumes light reference and isotope names in condition text |
+| `bin/legacy/export_silac_ratios.py` | Reusable peptide/protein TSVs for notebooks or other tools | Validates matching sources and preserves stored quantities |
+| `bin/legacy/silac_qc.py` | Audit existing exported tables against original files | Rejects stale/altered tables; descriptive QC and optional peptide benchmark |
+| `bin/legacy/analyze_ms1_mztab.py` | Quick terminal check of the original E. coli benchmark | Assumes light reference and isotope names in condition text |
 
 ### Export stored quantities
 
 ```bash
-python bin/export_silac_ratios.py \
+python bin/legacy/export_silac_ratios.py \
     --mztab results/PXD003327_duplex/experiment.mzTab \
     --consensusxml results/PXD003327_duplex/experiment.consensusXML \
     --design results/PXD003327_duplex/PXD003327_duplex.sdrf_openms_design.tsv \
@@ -666,7 +673,7 @@ OpenMS annotation and is not converted to ProForma.
 ### Audit existing ratio tables
 
 ```bash
-python bin/silac_qc.py \
+python bin/legacy/silac_qc.py \
     --peptide-ratios results/PXD003327_duplex/tables/peptide_ratios.tsv \
     --protein-ratios results/PXD003327_duplex/tables/protein_ratios.tsv \
     --mztab results/PXD003327_duplex/experiment.mzTab \
@@ -690,7 +697,7 @@ pass `conf/analysis_profiles.json` to `silac_qc.py --benchmark`.
 ### Quick E. coli terminal check
 
 ```bash
-python bin/analyze_ms1_mztab.py \
+python bin/legacy/analyze_ms1_mztab.py \
     results/PXD003327_duplex/experiment.mzTab \
     results/PXD003327_duplex/PXD003327_duplex.sdrf_openms_design.tsv \
     --benchmark pxd003327

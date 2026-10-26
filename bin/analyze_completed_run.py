@@ -21,11 +21,12 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict
 from pathlib import Path
 
-import export_silac_ratios as exporter
-import bin.legacy.silac_qc as qc
-
-
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT / "bin/legacy") not in sys.path:
+    sys.path.insert(0, str(ROOT / "bin/legacy"))
+
+import export_silac_ratios as exporter
+import silac_qc as qc
 ERRORS = (ValueError, KeyError, TypeError, IndexError, OSError, ET.ParseError)
 BENCHMARK_FIELDS = ["level", "fraction_group", "runs", "peptide_class", "normalization",
                     "numerator_label", "denominator_label", "estimate_kind", "expected_ratio",
@@ -626,8 +627,9 @@ def main(argv=None):
         outdir.mkdir(parents=True, exist_ok=True)
         metrics = {"schema_version": 1, "script": fingerprint(Path(__file__)), "python_version": sys.version,
                    "profiles_input": fingerprint(args.profiles), "bundles": [], "diagnostics": [], "methods": METHODS}
-        metrics["analysis_helpers"] = {name: fingerprint(ROOT / "bin" / name)
-                                       for name in ("export_silac_ratios.py", "silac_qc.py")}
+        metrics["analysis_helpers"] = {name: fingerprint(Path(module.__file__))
+                                       for name, module in (("export_silac_ratios.py", exporter),
+                                                            ("silac_qc.py", qc))}
         metrics["optional_packages"] = {}
         for package in ("matplotlib", "scipy"):
             try:
