@@ -2,6 +2,7 @@ AGENT.md
 baseline*
 
 data/
+datasets/
 testdata/
 docs/
 tests/

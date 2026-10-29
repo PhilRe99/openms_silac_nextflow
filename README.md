@@ -15,12 +15,41 @@ checked idXML outputs using the old image; the subsequent OpenMS upgrade
 intentionally changes scientific behavior. Broader validation is ongoing:
 successful execution does not establish quantitative accuracy for every dataset.
 
-The implementation and upgrade evidence were reviewed on **2026-10-20**.
-The immediate priority is fine-tuning processing tools to improve coverage
-while monitoring known-mixture accuracy. Further QPX validation, downstream
-analysis improvements, and PTM localization follow that work. See the
-[current status report](docs/NF_SILAC_Project_Status_2026-10-22.md) and the
-[October 20 upgrade status report](docs/legacy/NF_SILAC_OpenMS_Upgrade_Status_2026-10-20.md).
+**Status updated October 29, 2026; latest scientific experiments October 28.**
+Quantitative recovery and acquired-data ratio biases remain unresolved. In the
+PXD022659 baseline, 10,137 of 22,433 identified forms have a usable H/L ratio
+(54.8% missing). Native traces place 81.76–85.33% of each injection's missing
+forms before initial mapping/partial attachment. Subsequent diagnostics favor
+investigating feature availability and assembly inside `MS1LabeledWorkflow`
+and its OpenMS dependencies; they do not establish absent raw signal or a
+population-wide root cause.
+
+The [completed local study](results/local_attrition_work_20261028/README.md)
+reproduces the baseline and mapping associations. An isolated Spearman endpoint
+correction yields 471 gained and 160 lost forms (net +311), with mixed ratio
+quality; it remains experimental. The separate
+[RT-bounds correction](results/pxd022659_rt_bounds_fix_20261027/README.md) passes
+16 fixtures but leaves this acquired baseline unchanged. The production image
+and scientific defaults remain pinned.
+
+Tracking stays in our own [attrition issue #6](https://github.com/PhilRe99/openms_silac_nextflow/issues/6),
+updated October 29 with loss counts, suspected components and intervention results.
+The mistakenly filed [OpenMS issue #10775](https://github.com/OpenMS/OpenMS/issues/10775)
+is closed as not planned. No upstream PR or further experiment is planned by this
+update. Investigation evidence remains local and Git-ignored; versioning it is
+outside the current scope. QPX/current-build PXD001101 validation and quantms
+work remain open but deferred.
+
+The October 29 issue review closed evidence-versioning issue #11 as not planned
+and diagnostic-repair issue #14 as completed within its bounded scope; broader
+feature/signal validation remains under #6. CLI-boolean issue #10 remains open:
+current local coercion differs from the earlier strictly validated implementation,
+and its saved test results are historical.
+
+Start with the [current status report](docs/NF_SILAC_Project_Status_2026-10-28.md)
+or the [attrition explanation](docs/attrition_investigation/NF_SILAC_Attrition_Problem_Causes_and_Responsibilities_2026-10-28.md).
+The [public-reference benchmark](datasets/PXD022659/analysis/benchmark_report.md)
+explains the coverage, nominal-mixture agreement and technical-precision comparison.
 Historical dataset checkpoints below retain their stated dates. Local
 spectra, metadata, results, and reports are not all distributed with Git.
 
@@ -292,9 +321,16 @@ The four OpenMS 3.7 MS1 quantification options (`--silac_knock_out`,
 default, `--silac_min_ratio_count 2` and `--silac_match_between_runs false`
 match the underlying OpenMS CLI defaults for controlled quantification quality;
 `--silac_min_ratio_count 1` and `--silac_match_between_runs true` remain
-available as explicit completeness overrides (with
+available as experimental reporting/transfer options (with
 `opt_global_MS1Label:protein_ratio_count` retained in `mzTab` for downstream
 filtering).
+
+Lowering protein support changes reporting evidence without detecting new
+peptides; MBR gains need transfer-quality validation. The six exposed detector
+and ID-mapping controls retain their evaluated defaults. Some tested settings
+increase coverage, but none established a compelling validated replacement.
+The reported six-second detector-band results require a separate diagnostic
+satellite correction; the production flag alone does not reproduce that build.
 
 Other processes currently retain one CPU, including `PSMFeatureExtractor`.
 The `low_memory` profile limits execution to one task at a time across
@@ -352,12 +388,16 @@ or independently validated run.
 
 | Dataset | Local evidence | Main analysis |
 | --- | --- | --- |
-| PXD003327 | Completed idparquet migration comparisons and fresh full-pipeline OpenMS 3.7 development runs for duplex/triplex on 2026-10-20; old outputs retained | Residue-specific mixture accuracy, coverage tuning, and regression |
-| PXD039580 | Completed six-injection historical HeLa bundle and October 13 review; not rerun in the native-idparquet comparison | Mixture accuracy, coverage, and technical reproducibility |
+| PXD003327 | Native-format comparisons, fresh tuned 3.6/3.7 comparisons and fixed-ID detector/mapping investigations completed; settings branch closed with defaults retained | Residue-specific mixture accuracy, coverage/accuracy trade-offs and regression; exact deposited-file correspondence unresolved |
+| PXD039580 | Six-injection OpenMS-prepared and Thermo-native 3.7 comparisons completed by October 23; substantial missingness and persistent Mix2 H/L bias | Mixture accuracy, shared/gained/lost measurements and matched technical precision |
 | MSV000079761 | Curated yeast metadata and an analysis profile; no completed outputs in the retained review | Recovery of a 1:1 mixture after compatible inputs are prepared |
 
 The separate PXD001101 H1975 pilot has completed local processing and a
-scoped QPX audit; it is not one of these three built-in analysis profiles.
+scoped QPX audit on an older build; current-build fraction/PTM/reference checks
+remain outstanding. It is not one of these three built-in analysis profiles.
+The separate [PXD022659 benchmark](datasets/PXD022659/README.md) processes three
+nominal 1:1 HeLa injections and compares deposited MetaMorpheus outputs; its
+dataset-specific scripts are separate from the built-in profile catalog.
 
 ### PXD003327: E. coli isotope mixtures
 
@@ -960,6 +1000,10 @@ intermediate metadata field or validation of every supported study.
 
 ## OpenMS upgrade and next steps
 
+**Historical October 20 upgrade comparison.** The table and timing observations
+below retain that checkpoint's search settings and inherited defaults. They do
+not isolate the software-version effect; later tuned results follow below.
+
 The current image was tested both as an MS1-only replacement for duplex and
 through fresh full-pipeline duplex/triplex runs. Every OpenMS task in the
 fresh runs used the new digest: all 15 duplex tasks and nine triplex tasks
@@ -989,28 +1033,49 @@ against an expected 2.0**. Lost ratios are concentrated in peptides containing
 multiple K/R residues, and triplex MS1 processing takes about 117 seconds
 versus 33 seconds in the old run.
 
-The next development phase is **fine-tuning processing tools for coverage**:
+**October 22–27 follow-up.** Fresh comparisons applied the common tuned settings
+to both pinned builds, including the 0.02 Da E. coli search:
 
-1. Preserve the fresh 3.7 results as the baseline and identify where accepted
-   identifications lose quantitative support, including representative
-   multi-K/R peptides and weak or missing channels.
-2. Expose the settings needed for each experiment and change one at a time.
-   Start with evidence-driven MS1 detection, mapping, and re-quantification
-   comparisons; evaluate spectrum preparation, search, and rescoring settings
-   separately when their outputs identify an upstream limitation.
-3. Compare usable peptide ratios, protein support, missingness, known-mixture
-   error, and runtime together. Assess shared and newly recovered peptides
-   separately. Keep FDR criteria fixed for initial comparisons and retain raw
-   ratios; enabling normalization or match between runs is a separate experiment.
-4. Test promising settings on duplex and triplex before extending them to
-   the HeLa mixtures and fractionated H1975 pilot.
+| Subset | Tuned 3.6 peptide forms / protein groups with ratios | Tuned 3.7 peptide forms / protein groups with ratios |
+| --- | ---: | ---: |
+| Duplex | 757 / 122 | 963 / 139 |
+| Triplex | 294 / 62 | 432 / 78 |
 
-Further QPX consumer validation, downstream analysis/export improvements,
-and PTM localization are **later priorities**, not prerequisites for this
-tuning phase. Existing native QPX export remains available.
+These establish increased coverage, without a comprehensive matched-version
+accuracy claim. Fixed-ID ablations and detector/mapping trials are complete;
+some gain coverage with turnover or quantitative regressions. Retain current
+defaults and the distinction between native-runtime and diagnostic-overlay arms.
 
-The [upgrade status report](docs/NF_SILAC_OpenMS_Upgrade_Status_2026-10-20.md)
-records run identities, evidence, remaining limitations, and the tuning plan.
+Independent recounts find 33.2% duplex, 49.4% triplex, 59.1% OpenMS-prepared
+HeLa and 59.0% Thermo-native HeLa identified forms without usable ratios.
+These are modified-form identity unions with at least one positive finite raw
+ratio; PSMs, multiplets and ratio cells are different units. In PXD022659,
+missingness is 54.8% overall. On common same-run single-R forms it is 52.7–58.3%
+versus 7.5–10.0% for the deposited reference. That is a substantial workflow-dependent
+availability difference, with unresolved individual recoverability and mechanism.
+Shared-only nominal-mixture agreement does not establish general accuracy
+superiority. No universal literature attrition threshold validates these rates.
+
+Current priorities are:
+
+1. Track the loss investigation in our own
+   [issue #6](https://github.com/PhilRe99/openms_silac_nextflow/issues/6).
+   The proposed next increment is complete native tracing and independent paired
+   signal review on a defined panel, before choosing a recovery intervention.
+2. Review the Spearman correction's 160 lost forms, 21 shared ratio changes over
+   twofold and synthetic positive-control regressions before considering adoption.
+   Keep the RT-bounds, overlap and satellite findings as separate interventions.
+   Retain the pinned production image and defaults; no broad tuning grid is planned.
+3. Retain commands, hashes, inputs and evidence locally in ignored paths. Evidence
+   versioning is excluded from the current scope; a fresh clone lacks those materials.
+4. Keep QPX consumer requirements, current-build PXD001101 fraction/PTM/reference
+   checks and minimal quantms integration in the deferred backlog.
+
+These are proposed next steps; this documentation update launches no experiment.
+The [current report](docs/NF_SILAC_Project_Status_2026-10-28.md) records the current
+roadmap and evidence boundaries. The
+[historical upgrade report](docs/legacy/NF_SILAC_OpenMS_Upgrade_Status_2026-10-20.md)
+retains its original run identities and earlier tuning plan.
 The local [detailed comparison](results/openms37_validation/review/report.md)
 and adjacent `comparison.json`/`compare_runs.py` retain numerical checks and
 protein-support details. Keep their source results and work directories.
@@ -1043,8 +1108,11 @@ The October 20 upgrade review additionally checked all 12 available QPX
 tables from old duplex, MS1-only duplex, and fresh duplex/triplex runs with
 OpenMS `ParquetDiff -schema`. These passed, as did selected reciprocal
 PSM/feature and PSM-to-mzTab run/scan checks. Independent Python consumer
-validation and full nested-quantity reconciliation remain deferred until
-after the coverage-tuning phase.
+validation and full nested-quantity reconciliation remain scoped open work.
+The historical H1975 audit does not establish current-build compatibility.
+Define the intended consumer/version and verify channel/reference mapping,
+identifiers, null versus zero, nested quantities, native ratios/support and
+ambiguous protein assignments. Schema acceptance alone is insufficient.
 
 ## Synthetic PXD003327 triplex benchmark
 

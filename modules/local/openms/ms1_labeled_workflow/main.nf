@@ -8,6 +8,7 @@ process MS1_LABELED_WORKFLOW {
     tuple val(labels), path(mzmls), path(idparquets)
     path design
     path database
+    val enable_qpx
 
     output:
     path "experiment.mzTab", emit: mztab
@@ -17,7 +18,7 @@ process MS1_LABELED_WORKFLOW {
     script:
 
     def args = task.ext.args ?: ''
-    def qpxArgs = params.enable_qpx ? '-out_qpx qpx' : ''
+    def qpxArgs = enable_qpx ? '-out_qpx qpx' : ''
 
     def mzmlArgs = mzmls.collect { item ->
         "'" + item.toString().replace("'", "'\"'\"'") + "'"

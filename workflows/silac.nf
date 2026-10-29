@@ -67,7 +67,7 @@ workflow SILAC {
         THERMORAWFILEPARSER.out.runs
     )
 
-    if (params.openms_peakpicking) {
+    if (params.openms_peakpicking.toString().toBoolean()) {
         OPENMS_PEAK_PICKER(prepared_runs)
         prepared_runs = OPENMS_PEAK_PICKER.out.runs
     }
@@ -120,6 +120,7 @@ workflow SILAC {
     MS1_LABELED_WORKFLOW(
     ms1_input,
     CREATE_INPUT_CHANNEL.out.experimental_design,
-    GENERATE_DECOY_DATABASE.out.database
+    GENERATE_DECOY_DATABASE.out.database,
+    params.enable_qpx.toString().toBoolean()
     )
 }
