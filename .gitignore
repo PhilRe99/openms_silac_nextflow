@@ -11,6 +11,10 @@ misc/
 thesis_results/
 bin/legacy/
 
+# Local standalone analysis prototypes
+/bin/export_silac_analysis.py
+/bin/report_silac_phosphopeptides.py
+
 conf/pxd003327*
 
 # Keep standalone scientific analysis documentation and regression fixtures.
