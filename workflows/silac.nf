@@ -8,10 +8,18 @@ include { PSM_FEATURE_EXTRACTOR } from '../modules/local/openms/psm_feature_extr
 include { PERCOLATOR } from '../modules/local/openms/percolator/main'
 include { MS1_LABELED_WORKFLOW } from '../modules/local/openms/ms1_labeled_workflow/main'
 include { THERMORAWFILEPARSER } from '../modules/local/thermorawfileparser/main'
+include { SAVE_SILAC_CHEMISTRY } from '../modules/local/save_silac_chemistry/main'
+
 
 workflow SILAC {
 
     main:
+
+    ch_silac_chemistry = Channel.value(
+        file(params.silac_chemistry, checkIfExists: true)
+    )
+
+    SAVE_SILAC_CHEMISTRY(ch_silac_chemistry)
 
     CREATE_INPUT_CHANNEL(
         Channel.value(file(params.input))
@@ -22,7 +30,7 @@ workflow SILAC {
         CREATE_INPUT_CHANNEL.out.runs,
         CREATE_INPUT_CHANNEL.out.openms,
         CREATE_INPUT_CHANNEL.out.experimental_design,
-        Channel.value(file(params.silac_chemistry, checkIfExists: true)),
+        ch_silac_chemistry,
         Channel.value([override: params.comet_fragment_mass_tolerance]),
         Channel.value(file(params.input))
     )

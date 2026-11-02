@@ -4,8 +4,6 @@ process RESOLVE_SILAC_CONFIG {
 
     container 'openms-silac/python:3.11-procps'
 
-    publishDir "${params.outdir}/${file(params.input).name.replaceFirst(/\.sdrf\.tsv$/, '')}/configuration", mode: 'copy', pattern: 'silac_config_*.json'
-
     input:
     tuple val(meta), path(mzml)
     path openms_config
