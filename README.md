@@ -70,15 +70,21 @@ If SDRF fragment tolerance is in ppm, choose and document an explicit
 
 ## Outputs and settings
 
-Outputs are published under `OUTDIR/<SDRF name without .sdrf.tsv>/`:
+Outputs are published directly under `--outdir`. Use a separate output
+directory for each study, for example `--outdir results/my_study`.
 
 ```text
-study.sdrf_config.tsv
-study.sdrf_openms_design.tsv
-configuration/silac_config_<run-id>.json
-experiment.mzTab
-experiment.consensusXML
-qpx/                            # optional: --enable_qpx
+OUTDIR/
+├── sdrf/
+│   ├── study.sdrf.tsv
+│   ├── study.sdrf_openms_design.tsv
+│   ├── study.sdrf_config.tsv
+│   ├── silac_chemistry.json
+│   └── silac_config_<run-id>.json
+├── quant_tables/
+│   ├── experiment.mzTab
+│   └── experiment.consensusXML
+└── qpx/                         # optional: --enable_qpx
 ```
 
 QPX contains native feature, PSM, and protein-group Parquet tables. Export does
@@ -107,19 +113,9 @@ that are absent from a fresh clone.
 
 ## Local analysis and maintenance
 
-Where the local analysis helpers are available, generate a report from a
-completed result directory:
-
-```bash
-python bin/analyze_completed_run.py results/study --dataset none --no-plots
-```
-
-This requires Python **3.10+** and the Git-ignored helper modules in
-`bin/legacy/`. The report is written to `results/study/analysis/report.html`.
-Omit `--dataset none` to use configured expectations from
-[conf/analysis_profiles.json](conf/analysis_profiles.json). Matplotlib enables
-plots; SciPy enables configured biological tests. Analysis reads native
-mzTab/consensusXML/design files and preserves missing ratios.
+Published mzTab and consensusXML retain native quantities and evidence for
+downstream analysis. Local analysis prototypes are retained under
+`bin/legacy/`; compatibility with the current output layout remains unverified.
 
 Data, results, investigation reports, tests, and standalone analysis prototypes
 remain local and Git-ignored. A fresh clone contains the processing workflow
@@ -138,3 +134,6 @@ quantitative biases remain unresolved; reported coverage does not establish
 accuracy. Keep the pinned scientific baseline; further attrition experiments
 are paused by default. Phosphosite localization and quantms integration remain
 separate work.
+
+Repeated multithreaded runs have shown small peptide-ratio differences;
+bit-identical replay is not established.
