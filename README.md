@@ -13,7 +13,11 @@ quantification produces mzTab and consensusXML, with optional QPX output.
 
 Requirements: Nextflow **25.10.0+**, a compatible Java runtime, and Docker.
 OpenMS is pinned by digest in [nextflow.config](nextflow.config) to a **3.7
-development build**, revision `842adef`.
+development build**, revision `553de47` (nightly built November 4, 2026).
+The current wrapper requires this newer CLI: selecting `842adef` via
+`--openms_container` alone fails because four MS1 options are unsupported there.
+Historical comparisons use the retained
+[old-build configuration overlay](results/end_to_end_comparison_20261104/old.config).
 
 Build the two helper images from the repository root:
 
@@ -28,6 +32,18 @@ docker build -f containers/python.Dockerfile \
 The SDRF recipe requires the existing base image
 `openms-silac/sdrf-pipelines:dea8ba9`; this repository does not build that base.
 Enable containers with `-profile docker`.
+
+For `--enable_qpx true`, also provide the **locally patched QPX image** selected
+by `QPX_ENRICH` in [conf/modules.config](conf/modules.config). The two helper
+builds above do not provide it. Its `sha256:a71dfbb6…` reference is a local image
+ID on the tested Docker daemon, not a pullable registry digest. Follow the local
+[consumer build instructions](containers/CONSUMERS.md) and
+[build manifest](containers/consumer-builds.json), or transfer the verified image
+with Docker save/load. Verify the resulting image ID; a rebuild may require
+selecting the new verified ID through a local Nextflow configuration override.
+Consumer recipes and patches under `containers/` are Git-ignored and must be
+transferred separately when setting up another checkout. An unpatched released
+QPX image does not provide the tested SILAC enrichment behavior.
 
 ## Run
 
@@ -87,8 +103,11 @@ OUTDIR/
 └── qpx/                         # optional: --enable_qpx
 ```
 
-QPX contains native feature, PSM, and protein-group Parquet tables. Export does
-not automatically validate the QPX schema or enrich it with SDRF metadata.
+With `--enable_qpx true`, the workflow enriches native feature, PSM, and
+protein-group Parquet tables with SDRF metadata and publishes the QPX dataset.
+Strict QPX schema validation is a separate check. Keep the mzTab and
+consensusXML companions for peptide-level targeted/requantified evidence that
+the QPX feature table does not preserve.
 Intermediate mzML and idparquet bundles stay in `work/`. Keep `work/` and
 `.nextflow/` to reuse completed tasks with `-resume`.
 
@@ -103,9 +122,19 @@ are in [conf/modules.config](conf/modules.config).
 | `--silac_min_ratio_count` | `2` |
 | `--silac_normalize_ratios` | `false` |
 | `--silac_knock_out` / `--silac_requantify` | `true` / `true` |
+| `--silac_join_channels` | `true` |
+| `--silac_targeted_quantification` | `false` |
+| `--silac_requantify_min_correlation` | `0.5` |
+| `--silac_requantify_correlation_ratio` | `0.3` |
 | `--silac_id_mz_reference` | `peptide` |
 | `--silac_match_between_runs` | `false` |
 | `--openms_peakpicking` / `--enable_qpx` | `false` / `false` |
+
+Targeted quantification is disabled by default. Enable it explicitly with
+`--silac_targeted_quantification true` to extract identified peptides without
+a detected multiplet. Retain mzTab and consensusXML: they preserve peptide-level
+targeted and re-quantified evidence counts that QPX feature tables do not carry.
+QPX protein-group tables retain the corresponding protein-level counts.
 
 The `low_memory` profile runs one task at a time; it does not cap per-task RAM.
 The `test_duplex` and `test_triplex` profiles require local fixtures and data
@@ -135,5 +164,13 @@ accuracy. Keep the pinned scientific baseline; further attrition experiments
 are paused by default. Phosphosite localization and quantms integration remain
 separate work.
 
-Repeated multithreaded runs have shown small peptide-ratio differences;
-bit-identical replay is not established.
+Historical multithreaded runs on earlier OpenMS builds showed small peptide-ratio
+differences. The nightly dependency evaluation used retained IDs and one thread;
+it does not establish end-to-end identification equivalence for the new build.
+A completed old/new comparison from fresh searches covered E. coli duplex and
+triplex, with all 56 tasks successful. Identification populations differ slightly
+after rescoring. A separate duplex check established bounded one-/two-thread
+replay; this does not establish reproducibility across all datasets.
+Shared Percolator input preparation changed despite unchanged
+external search/rescoring binaries. OpenMS also records a hardcoded Percolator
+version of 3.07; the pinned image contains Percolator 3.06.0.

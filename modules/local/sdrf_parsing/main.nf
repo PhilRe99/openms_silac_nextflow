@@ -13,7 +13,7 @@ process SDRF_PARSING {
     path "${sdrf.baseName}_config.tsv"       , emit: ch_sdrf_config_file
 
     script:
-    def extensionArgs = params.convert_raw ? '--extension_convert raw:mzML' : ''
+    def extensionArgs = params.convert_raw.toString().toBoolean() ? '--extension_convert raw:mzML' : ''
 
     """
     parse_sdrf validate-sdrf   --sdrf_file "$sdrf"   --template ms-proteomics

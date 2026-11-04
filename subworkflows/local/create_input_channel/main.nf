@@ -26,7 +26,7 @@ workflow CREATE_INPUT_CHANNEL {
                 error "Unsupported input format: ${mzml.name}"
             }
 
-            if (extension == 'raw' && !params.convert_raw) {
+            if (extension == 'raw' && !params.convert_raw.toString().toBoolean()) {
                 error "RAW input ${mzml.name} requires --convert_raw"
             }
 
