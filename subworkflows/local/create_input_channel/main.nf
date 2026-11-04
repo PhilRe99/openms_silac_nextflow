@@ -52,4 +52,5 @@ workflow CREATE_INPUT_CHANNEL {
     runs = ch_runs
     openms = SDRF_PARSING.out.ch_sdrf_config_file
     experimental_design = SDRF_PARSING.out.ch_expdesign
+    source_sdrf = SDRF_PARSING.out.source_sdrf
 }

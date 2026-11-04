@@ -9,7 +9,7 @@ include { PERCOLATOR } from '../modules/local/openms/percolator/main'
 include { MS1_LABELED_WORKFLOW } from '../modules/local/openms/ms1_labeled_workflow/main'
 include { THERMORAWFILEPARSER } from '../modules/local/thermorawfileparser/main'
 include { SAVE_SILAC_CHEMISTRY } from '../modules/local/save_silac_chemistry/main'
-
+include { QPX_ENRICH } from '../modules/local/qpx/enrich/main'
 
 workflow SILAC {
 
@@ -131,4 +131,14 @@ workflow SILAC {
     GENERATE_DECOY_DATABASE.out.database,
     params.enable_qpx.toString().toBoolean()
     )
+
+    if (params.enable_qpx.toString().toBoolean()) {
+
+        ch_native_qpx = MS1_LABELED_WORKFLOW.out.qpx.combine(MS1_LABELED_WORKFLOW.out.consensus)
+
+        QPX_ENRICH(
+            ch_native_qpx,
+            CREATE_INPUT_CHANNEL.out.source_sdrf
+        )
+    }
 }
