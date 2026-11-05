@@ -1,7 +1,5 @@
 process SAVE_SILAC_CHEMISTRY {
 
-    container 'openms-silac/python:3.11-procps'
-
     input:
     path chemistry
 

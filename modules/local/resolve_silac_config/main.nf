@@ -2,8 +2,6 @@ process RESOLVE_SILAC_CONFIG {
 
     tag "${meta.id}"
 
-    container 'openms-silac/python:3.11-procps'
-
     input:
     tuple val(meta), path(mzml)
     path openms_config

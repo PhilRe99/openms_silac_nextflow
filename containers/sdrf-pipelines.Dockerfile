@@ -1,6 +1,8 @@
-FROM openms-silac/sdrf-pipelines:dea8ba9
+FROM quay.io/biocontainers/sdrf-pipelines@sha256:b259135d4bf03dd76461eec481b755f745acb51c1f9d23a4709fbcfa0c999977
 
-# Nextflow report/trace/timeline collection runs ps inside the task container.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends procps \
-    && rm -rf /var/lib/apt/lists/*
+ENV XDG_CACHE_HOME=/opt/sdrf-cache \
+    PYTHONDONTWRITEBYTECODE=1
+
+RUN python -c \
+    "from sdrf_pipelines.ols.ols import download_ontology_cache; download_ontology_cache()" \
+    && chmod -R a+rX /opt/sdrf-cache

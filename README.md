@@ -23,15 +23,21 @@ Build the two helper images from the repository root:
 
 ```bash
 docker build -f containers/sdrf-pipelines.Dockerfile \
-    -t openms-silac/sdrf-pipelines:dea8ba9-procps containers
+    -t openms-silac/sdrf-pipelines:0.1.7-ontology1 containers
 
 docker build -f containers/python.Dockerfile \
     -t openms-silac/python:3.11-procps containers
 ```
 
-The SDRF recipe requires the existing base image
-`openms-silac/sdrf-pipelines:dea8ba9`; this repository does not build that base.
-Enable containers with `-profile docker`.
+The SDRF recipe uses the digest-pinned public SDRF-pipelines 0.1.7 image and
+downloads its ontology cache during the build. The parser uses that cache for
+offline ontology validation. Building needs network access; runtime parsing
+does not need it for the validated fixtures. The cache is readable by non-root
+users under `/opt/sdrf-cache`.
+
+Select these helpers with `--sdrf_container` and `--python_container`; their
+defaults are the build tags above. They are local images and must be transferred
+or published before use on another machine. Enable containers with `-profile docker`.
 
 QPX enrichment and pMultiQC reporting are enabled by default. They require the
 **locally patched consumer images** selected by `--qpx_container` and
