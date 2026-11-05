@@ -12,7 +12,15 @@ LABEL_MODIFICATIONS = {
     "Lys8": "Label:13C(6)15N(2) (K)",
     "Arg10": "Label:13C(6)15N(4) (R)",
 }
+
+
 SILAC_LABEL_MODIFICATIONS = set(LABEL_MODIFICATIONS.values())
+
+#reject isotope labels other than the supported K/R SILAC labels
+def reject_unsupported_labels(modifications, location):
+    unknown = [m for m in modifications if "Label:" in m and m not in SILAC_LABEL_MODIFICATIONS]
+    if unknown:
+        raise ValueError(f"Label: {unknown} in {location} modifications not supported. Only: {SILAC_LABEL_MODIFICATIONS} supported!")
 
 #channel numbers written by sdrf-pipelines into the experimental design
 #(OpenMSExperimentalDesign._get_label_from_labels): light/medium/heavy = 1/2/3 as soon as
@@ -239,6 +247,7 @@ def map_labels_to_modifications(labels, label_channels, channel_chemistry) -> di
 def build_comet_binary_modifications(openms_design, label_modifications) -> list:
 
     sdrf_modifications = split_modifications(openms_design.get("VariableModifications"))
+    reject_unsupported_labels(sdrf_modifications, "variable")
 
     variable_modifications_silac = []
 
@@ -274,6 +283,7 @@ def build_comet_binary_modifications(openms_design, label_modifications) -> list
 def build_fixed_modifications(openms_design) -> list:
 
     fixed_modifications = split_modifications(openms_design.get("FixedModifications"))
+    reject_unsupported_labels(fixed_modifications, "fixed")
 
     fixed_labels = [mod for mod in fixed_modifications if mod in SILAC_LABEL_MODIFICATIONS]
     if fixed_labels:
