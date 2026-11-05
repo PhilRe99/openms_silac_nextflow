@@ -10,10 +10,16 @@ include { MS1_LABELED_WORKFLOW } from '../modules/local/openms/ms1_labeled_workf
 include { THERMORAWFILEPARSER } from '../modules/local/thermorawfileparser/main'
 include { SAVE_SILAC_CHEMISTRY } from '../modules/local/save_silac_chemistry/main'
 include { QPX_ENRICH } from '../modules/local/qpx/enrich/main'
+include { PMULTIQC as SUMMARY_PIPELINE } from '../modules/local/pmultiqc/main'
 
 workflow SILAC {
 
     main:
+
+    if (params.enable_pmultiqc.toString().toBoolean() &&
+    !params.enable_qpx.toString().toBoolean()) {
+    error 'enable_pmultiqc requires enable_qpx'
+    }
 
     ch_silac_chemistry = Channel.value(
         file(params.silac_chemistry, checkIfExists: true)
@@ -140,5 +146,17 @@ workflow SILAC {
             ch_native_qpx,
             CREATE_INPUT_CHANNEL.out.source_sdrf
         )
+
+        if (params.enable_pmultiqc.toString().toBoolean()) {
+            ch_report_inputs = QPX_ENRICH.out.qpx.flatMap {
+                directory -> files("${directory}/*.parquet", checkIfExists: true)
+            }
+            .mix(CREATE_INPUT_CHANNEL.out.source_sdrf)
+            .mix(CREATE_INPUT_CHANNEL.out.experimental_design)
+            .mix(MS1_LABELED_WORKFLOW.out.mztab)
+            .mix(Channel.value(file("${projectDir}/assets/multiqc_config.yml", checkIfExists: true)))
+            .collect()
+            SUMMARY_PIPELINE(ch_report_inputs)
+        }
     }
 }

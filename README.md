@@ -33,14 +33,15 @@ The SDRF recipe requires the existing base image
 `openms-silac/sdrf-pipelines:dea8ba9`; this repository does not build that base.
 Enable containers with `-profile docker`.
 
-For `--enable_qpx true`, also provide the **locally patched QPX image** selected
-by `QPX_ENRICH` in [conf/modules.config](conf/modules.config). The two helper
-builds above do not provide it. Its `sha256:a71dfbb6…` reference is a local image
-ID on the tested Docker daemon, not a pullable registry digest. Follow the local
+QPX enrichment and pMultiQC reporting are enabled by default. They require the
+**locally patched consumer images** selected by `--qpx_container` and
+`--pmultiqc_container` in [nextflow.config](nextflow.config). The two helper
+builds above do not provide them. The default `sha256:…` references identify
+images on the tested Docker daemon, not published registry images. Follow the local
 [consumer build instructions](containers/CONSUMERS.md) and
 [build manifest](containers/consumer-builds.json), or transfer the verified image
 with Docker save/load. Verify the resulting image ID; a rebuild may require
-selecting the new verified ID through a local Nextflow configuration override.
+selecting the new verified ID through the corresponding container parameter.
 Consumer recipes and patches under `containers/` are Git-ignored and must be
 transferred separately when setting up another checkout. An unpatched released
 QPX image does not provide the tested SILAC enrichment behavior.
@@ -100,7 +101,10 @@ OUTDIR/
 ├── quant_tables/
 │   ├── experiment.mzTab
 │   └── experiment.consensusXML
-└── qpx/                         # optional: --enable_qpx
+├── qpx/                         # enabled by default
+└── pmultiqc/                    # enabled by default
+    ├── *.html
+    └── *_data/
 ```
 
 With `--enable_qpx true`, the workflow enriches native feature, PSM, and
@@ -108,6 +112,14 @@ protein-group Parquet tables with SDRF metadata and publishes the QPX dataset.
 Strict QPX schema validation is a separate check. Keep the mzTab and
 consensusXML companions for peptide-level targeted/requantified evidence that
 the QPX feature table does not preserve.
+The report consumes enriched QPX and matching design/SDRF/mzTab context.
+[assets/multiqc_config.yml](assets/multiqc_config.yml) supplies report identity
+and file-recognition patterns; no quantms logo is staged. Its title also
+determines the HTML/data basename in the tested MultiQC version. Report plots
+summarize the available evidence; they do not establish native-ratio accuracy.
+
+Use `--enable_pmultiqc false` for QPX without reporting. To disable both stages,
+pass `--enable_qpx false --enable_pmultiqc false`. Reporting requires QPX.
 Intermediate mzML and idparquet bundles stay in `work/`. Keep `work/` and
 `.nextflow/` to reuse completed tasks with `-resume`.
 
@@ -128,7 +140,8 @@ are in [conf/modules.config](conf/modules.config).
 | `--silac_requantify_correlation_ratio` | `0.3` |
 | `--silac_id_mz_reference` | `peptide` |
 | `--silac_match_between_runs` | `false` |
-| `--openms_peakpicking` / `--enable_qpx` | `false` / `false` |
+| `--openms_peakpicking` | `false` |
+| `--enable_qpx` / `--enable_pmultiqc` | `true` / `true` |
 
 Targeted quantification is disabled by default. Enable it explicitly with
 `--silac_targeted_quantification true` to extract identified peptides without
