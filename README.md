@@ -90,6 +90,10 @@ and triplex subsets separately. Chemistry definitions are in
 [assets/silac_chemistry.json](assets/silac_chemistry.json).
 If SDRF fragment tolerance is in ppm, choose and document an explicit
 `--comet_fragment_mass_tolerance VALUE` in **Da**; no automatic conversion is used.
+Precursor tolerance and enzyme come from the SDRF. The enzyme is used by Comet;
+decoy generation and Percolator assume trypsin.
+`--contaminant_database FILE` adds a contaminant FASTA to the target database
+before decoy generation. Prefix its accessions with `CONT_` so pMultiQC flags them.
 
 ## Outputs and settings
 
@@ -135,13 +139,15 @@ are in [conf/modules.config](conf/modules.config).
 | Parameter | Default |
 | --- | --- |
 | `--cpus` | `2` for the main search/quantification processes |
+| `--contaminant_database` | none |
 | `--psm_fdr` / `--protein_level_fdr_cutoff` | `0.01` / `0.01` |
 | `--silac_reference_channel` | `1` (channels numbered from 1) |
 | `--silac_min_ratio_count` | `2` |
 | `--silac_normalize_ratios` | `false` |
 | `--silac_knock_out` / `--silac_requantify` | `true` / `true` |
 | `--silac_join_channels` | `true` |
-| `--silac_targeted_quantification` | `false` |
+| `--silac_max_labelled_aas` | `2` (up to 3 labelled residues per peptide) |
+| `--silac_targeted_quantification` | `true` |
 | `--silac_requantify_min_correlation` | `0.5` |
 | `--silac_requantify_correlation_ratio` | `0.3` |
 | `--silac_id_mz_reference` | `peptide` |
@@ -149,9 +155,9 @@ are in [conf/modules.config](conf/modules.config).
 | `--openms_peakpicking` | `false` |
 | `--enable_qpx` / `--enable_pmultiqc` | `true` / `true` |
 
-Targeted quantification is disabled by default. Enable it explicitly with
-`--silac_targeted_quantification true` to extract identified peptides without
-a detected multiplet. Retain mzTab and consensusXML: they preserve peptide-level
+Targeted quantification is on by default; it extracts identified peptides
+without a detected multiplet. Disable it with
+`--silac_targeted_quantification false` for the conservative setting. Retain mzTab and consensusXML: they preserve peptide-level
 targeted and re-quantified evidence counts that QPX feature tables do not carry.
 QPX protein-group tables retain the corresponding protein-level counts.
 

@@ -87,7 +87,8 @@ workflow SILAC {
     }
 
     GENERATE_DECOY_DATABASE(
-        validated_runs.first().map { run -> file(params.database, checkIfExists: true) }
+        validated_runs.first().map { run -> file(params.database, checkIfExists: true) },
+        params.contaminant_database ? file(params.contaminant_database, checkIfExists: true) : []
     )
 
     prepared_runs
