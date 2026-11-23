@@ -10,6 +10,9 @@ tests/
 misc/
 thesis_results/
 bin/legacy/
+investigation*/
+
+nxf-tmp*
 
 # Local standalone analysis prototypes
 /bin/export_silac_analysis.py
