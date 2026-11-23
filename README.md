@@ -13,7 +13,7 @@ quantification produces mzTab and consensusXML, with optional QPX output.
 
 Requirements: Nextflow **25.10.0+**, a compatible Java runtime, and Docker.
 OpenMS is pinned by digest in [nextflow.config](nextflow.config) to a **3.7
-development build**, revision `553de47` (nightly built November 4, 2026).
+development build**, revision `a5b0f3f` (nightly built November 17, 2026).
 The current wrapper requires this newer CLI: selecting `842adef` via
 `--openms_container` alone fails because four MS1 options are unsupported there.
 Historical comparisons use the retained
@@ -37,7 +37,9 @@ users under `/opt/sdrf-cache`.
 
 Select these helpers with `--sdrf_container` and `--python_container`; their
 defaults are the build tags above. They are local images and must be transferred
-or published before use on another machine. Enable containers with `-profile docker`.
+or published before use on another machine. Override the RAW converter image
+with `--thermorawfileparser_container` if needed. Enable containers with
+`-profile docker`.
 
 QPX enrichment and pMultiQC reporting are enabled by default. They require the
 **locally patched consumer images** selected by `--qpx_container` and
@@ -140,6 +142,8 @@ are in [conf/modules.config](conf/modules.config).
 | --- | --- |
 | `--cpus` | `2` for the main search/quantification processes |
 | `--contaminant_database` | none |
+| `--comet_clip_nterm_methionine` | `true` (enables initiator-Met excision in Comet) |
+| `--comet_fragment_bin_offset` | `0.0` (`0.4` recommended for ion-trap / `--instrument low_res`) |
 | `--psm_fdr` / `--protein_level_fdr_cutoff` | `0.01` / `0.01` |
 | `--silac_reference_channel` | `1` (channels numbered from 1) |
 | `--silac_min_ratio_count` | `2` |

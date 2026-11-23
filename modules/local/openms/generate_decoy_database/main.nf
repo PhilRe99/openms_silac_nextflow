@@ -6,7 +6,7 @@ process GENERATE_DECOY_DATABASE {
 
     input:
     path fasta
-    path contaminants
+    path contaminants, stageAs: 'contaminants/*'
 
     output:
     path "${fasta.baseName}_target_decoy.fasta", emit: database
