@@ -26,7 +26,7 @@ workflow CREATE_INPUT_CHANNEL {
                 error "Unsupported input format: ${mzml.name}"
             }
 
-            if (extension == 'raw' && !params.convert_raw) {
+            if (extension == 'raw' && !params.convert_raw.toString().toBoolean()) {
                 error "RAW input ${mzml.name} requires --convert_raw"
             }
 
@@ -52,4 +52,5 @@ workflow CREATE_INPUT_CHANNEL {
     runs = ch_runs
     openms = SDRF_PARSING.out.ch_sdrf_config_file
     experimental_design = SDRF_PARSING.out.ch_expdesign
+    source_sdrf = SDRF_PARSING.out.source_sdrf
 }

@@ -1,18 +1,27 @@
 AGENT.md
 baseline*
 
+containers/
 data/
+datasets/
 testdata/
 docs/
 tests/
-assets/
 misc/
+thesis_results/
+bin/legacy/
+investigation*/
 
-# Keep standalone scientific analysis documentation and regression fixtures.
+nxf-tmp*
 
-!assets/
-assets/*
-!assets/metadata/
+# Local standalone analysis prototypes
+/bin/export_silac_analysis.py
+/bin/report_silac_phosphopeptides.py
+
+assets/benchmarks/
+
+conf/pxd003327*
+conf/analysis*
 
 # Nextflow
 .nextflow/

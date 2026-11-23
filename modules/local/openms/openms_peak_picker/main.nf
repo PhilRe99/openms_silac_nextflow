@@ -11,12 +11,15 @@ process OPENMS_PEAK_PICKER {
     tuple val(meta), path("prepared/${mzml.name}"), emit: runs
 
     script:
+    def msLevels = params.peakpicking_ms_levels
+    def levelArgs = msLevels ? " -algorithm:ms_levels ${msLevels}" : ""
+
     """
     mkdir -p prepared
 
     PeakPickerHiRes \
         -in "${mzml}" \
         -out "prepared/${mzml.name}" \
-        -threads ${task.cpus}
+        -threads ${task.cpus}${levelArgs}
     """
 }

@@ -8,10 +8,24 @@ include { PSM_FEATURE_EXTRACTOR } from '../modules/local/openms/psm_feature_extr
 include { PERCOLATOR } from '../modules/local/openms/percolator/main'
 include { MS1_LABELED_WORKFLOW } from '../modules/local/openms/ms1_labeled_workflow/main'
 include { THERMORAWFILEPARSER } from '../modules/local/thermorawfileparser/main'
+include { SAVE_SILAC_CHEMISTRY } from '../modules/local/save_silac_chemistry/main'
+include { QPX_ENRICH } from '../modules/local/qpx/enrich/main'
+include { PMULTIQC as SUMMARY_PIPELINE } from '../modules/local/pmultiqc/main'
 
 workflow SILAC {
 
     main:
+
+    if (params.enable_pmultiqc.toString().toBoolean() &&
+    !params.enable_qpx.toString().toBoolean()) {
+    error 'enable_pmultiqc requires enable_qpx'
+    }
+
+    ch_silac_chemistry = Channel.value(
+        file(params.silac_chemistry, checkIfExists: true)
+    )
+
+    SAVE_SILAC_CHEMISTRY(ch_silac_chemistry)
 
     CREATE_INPUT_CHANNEL(
         Channel.value(file(params.input))
@@ -22,7 +36,7 @@ workflow SILAC {
         CREATE_INPUT_CHANNEL.out.runs,
         CREATE_INPUT_CHANNEL.out.openms,
         CREATE_INPUT_CHANNEL.out.experimental_design,
-        Channel.value(file(params.silac_chemistry, checkIfExists: true)),
+        ch_silac_chemistry,
         Channel.value([override: params.comet_fragment_mass_tolerance]),
         Channel.value(file(params.input))
     )
@@ -63,15 +77,21 @@ workflow SILAC {
 
     THERMORAWFILEPARSER(spectra_inputs.raw)
 
-    OPENMS_PEAK_PICKER(
-        spectra_inputs.mzml.mix(THERMORAWFILEPARSER.out.runs)
+    prepared_runs = spectra_inputs.mzml.mix(
+        THERMORAWFILEPARSER.out.runs
     )
+
+    if (params.openms_peakpicking.toString().toBoolean()) {
+        OPENMS_PEAK_PICKER(prepared_runs)
+        prepared_runs = OPENMS_PEAK_PICKER.out.runs
+    }
 
     GENERATE_DECOY_DATABASE(
-        validated_runs.first().map { run -> file(params.database, checkIfExists: true) }
+        validated_runs.first().map { run -> file(params.database, checkIfExists: true) },
+        params.contaminant_database ? file(params.contaminant_database, checkIfExists: true) : []
     )
 
-    OPENMS_PEAK_PICKER.out.runs
+    prepared_runs
         .combine(GENERATE_DECOY_DATABASE.out.database)
         .set { comet_input }
 
@@ -115,6 +135,29 @@ workflow SILAC {
     MS1_LABELED_WORKFLOW(
     ms1_input,
     CREATE_INPUT_CHANNEL.out.experimental_design,
-    GENERATE_DECOY_DATABASE.out.database
+    GENERATE_DECOY_DATABASE.out.database,
+    params.enable_qpx.toString().toBoolean()
     )
+
+    if (params.enable_qpx.toString().toBoolean()) {
+
+        ch_native_qpx = MS1_LABELED_WORKFLOW.out.qpx.combine(MS1_LABELED_WORKFLOW.out.consensus)
+
+        QPX_ENRICH(
+            ch_native_qpx,
+            CREATE_INPUT_CHANNEL.out.source_sdrf
+        )
+
+        if (params.enable_pmultiqc.toString().toBoolean()) {
+            ch_report_inputs = QPX_ENRICH.out.qpx.flatMap {
+                directory -> files("${directory}/*.parquet", checkIfExists: true)
+            }
+            .mix(CREATE_INPUT_CHANNEL.out.source_sdrf)
+            .mix(CREATE_INPUT_CHANNEL.out.experimental_design)
+            .mix(MS1_LABELED_WORKFLOW.out.mztab)
+            .mix(Channel.value(file("${projectDir}/assets/multiqc_config.yml", checkIfExists: true)))
+            .collect()
+            SUMMARY_PIPELINE(ch_report_inputs)
+        }
+    }
 }

@@ -14,7 +14,6 @@ process THERMORAWFILEPARSER {
     ThermoRawFileParser.sh \\
         -i="${raw}" \\
         -b="${meta.id}.mzML" \\
-        -f=2 \\
-        -p
+        -f=2
     """
 }
