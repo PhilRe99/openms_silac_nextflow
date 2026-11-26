@@ -1,8 +1,9 @@
-process QPX_ENRICH {
+process QPX_CONVERT {
 
     input:
-    tuple path(native_qpx, stageAs: 'native_qpx'), path(consensus)
+    path consensus
     path sdrf
+    path fasta
 
     output:
     path 'qpx', emit: qpx
@@ -18,10 +19,10 @@ process QPX_ENRICH {
     def accessionArg = accession ? "--project-accession ${quote.call(accession)}" : ''
 
     """
-    qpxc convert openms \
-        --qpx-dir ${quote.call(native_qpx)} \
-        --sdrf-file ${quote.call(sdrf)} \
+    qpxc convert openms-consensus \
         --consensusxml ${quote.call(consensus)} \
+        --sdrf-file ${quote.call(sdrf)} \
+        --fasta ${quote.call(fasta)} \
         --output-folder qpx \
         --output-prefix ${quote.call(prefix)} \
         ${accessionArg}

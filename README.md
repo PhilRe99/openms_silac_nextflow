@@ -41,18 +41,21 @@ or published before use on another machine. Override the RAW converter image
 with `--thermorawfileparser_container` if needed. Enable containers with
 `-profile docker`.
 
-QPX enrichment and pMultiQC reporting are enabled by default. They require the
-**locally patched consumer images** selected by `--qpx_container` and
-`--pmultiqc_container` in [nextflow.config](nextflow.config). The two helper
-builds above do not provide them. The default `sha256:…` references identify
-images on the tested Docker daemon, not published registry images. Follow the local
+QPX conversion and pMultiQC reporting are enabled by default. QPX uses the
+public `ghcr.io/bigbio/qpx` image pinned by digest in `--qpx_container` and runs
+`qpxc convert openms-consensus`, the converter quantms uses. The pinned build
+is QPX `main` at `2dadc0e` (published under the `dev` tag); released QPX 1.3.0
+labels SILAC quantities as label-free and drops the heavy/light ratios.
+pMultiQC requires the **locally patched image** selected by
+`--pmultiqc_container` in [nextflow.config](nextflow.config). The helper builds
+above do not provide it. Its default `sha256:…` reference identifies an image
+on the tested Docker daemon, not a published registry image. Follow the local
 [consumer build instructions](containers/CONSUMERS.md) and
-[build manifest](containers/consumer-builds.json), or transfer the verified image
-with Docker save/load. Verify the resulting image ID; a rebuild may require
-selecting the new verified ID through the corresponding container parameter.
-Consumer recipes and patches under `containers/` are Git-ignored and must be
-transferred separately when setting up another checkout. An unpatched released
-QPX image does not provide the tested SILAC enrichment behavior.
+[build manifest](containers/consumer-builds.json), or transfer the verified
+image with Docker save/load. Verify the resulting image ID; a rebuild may
+require selecting the new verified ID through `--pmultiqc_container`. Recipes
+and patches under `containers/` are Git-ignored and must be transferred
+separately when setting up another checkout.
 
 ## Run
 
@@ -113,18 +116,23 @@ OUTDIR/
 ├── quant_tables/
 │   ├── experiment.mzTab
 │   └── experiment.consensusXML
-├── qpx/                         # enabled by default
+├── qpx/                         # converted QPX dataset, enabled by default
+├── qpx_native/                  # OpenMS's own QPX tables, with QPX
 └── pmultiqc/                    # enabled by default
     ├── *.html
     └── *_data/
 ```
 
-With `--enable_qpx true`, the workflow enriches native feature, PSM, and
-protein-group Parquet tables with SDRF metadata and publishes the QPX dataset.
-Strict QPX schema validation is a separate check. Keep the mzTab and
-consensusXML companions for peptide-level targeted/requantified evidence that
-the QPX feature table does not preserve.
-The report consumes enriched QPX and matching design/SDRF/mzTab context.
+With `--enable_qpx true`, the workflow converts the consensusXML and SDRF into a
+QPX dataset (`qpx/`), using the search database to fill protein properties. It
+also publishes the QPX tables that `MS1LabeledWorkflow` writes itself
+(`qpx_native/`, without SDRF metadata). The converted dataset keeps all PSM
+identities and heavy/light protein ratios, but it currently fails strict PSM
+validation (some PSM labels are missing from their linked features), drops the
+ratio-count annotations, and reports a unique-peptide intensity sum as the
+protein quantity. Keep the mzTab and consensusXML companions for native
+quantities and peptide-level targeted/requantified evidence.
+The report consumes the converted QPX and matching design/SDRF/mzTab context.
 [assets/multiqc_config.yml](assets/multiqc_config.yml) supplies report identity
 and file-recognition patterns; no quantms logo is staged. Its title also
 determines the HTML/data basename in the tested MultiQC version. Report plots
@@ -163,7 +171,8 @@ Targeted quantification is on by default; it extracts identified peptides
 without a detected multiplet. Disable it with
 `--silac_targeted_quantification false` for the conservative setting. Retain mzTab and consensusXML: they preserve peptide-level
 targeted and re-quantified evidence counts that QPX feature tables do not carry.
-QPX protein-group tables retain the corresponding protein-level counts.
+Of the QPX outputs, only the protein-group table in `qpx_native/` retains the
+corresponding protein-level counts.
 
 The `low_memory` profile runs one task at a time; it does not cap per-task RAM.
 The `test_duplex` and `test_triplex` profiles require local fixtures and data

@@ -9,7 +9,7 @@ include { PERCOLATOR } from '../modules/local/openms/percolator/main'
 include { MS1_LABELED_WORKFLOW } from '../modules/local/openms/ms1_labeled_workflow/main'
 include { THERMORAWFILEPARSER } from '../modules/local/thermorawfileparser/main'
 include { SAVE_SILAC_CHEMISTRY } from '../modules/local/save_silac_chemistry/main'
-include { QPX_ENRICH } from '../modules/local/qpx/enrich/main'
+include { QPX_CONVERT } from '../modules/local/qpx/convert/main'
 include { PMULTIQC as SUMMARY_PIPELINE } from '../modules/local/pmultiqc/main'
 
 workflow SILAC {
@@ -141,15 +141,14 @@ workflow SILAC {
 
     if (params.enable_qpx.toString().toBoolean()) {
 
-        ch_native_qpx = MS1_LABELED_WORKFLOW.out.qpx.combine(MS1_LABELED_WORKFLOW.out.consensus)
-
-        QPX_ENRICH(
-            ch_native_qpx,
-            CREATE_INPUT_CHANNEL.out.source_sdrf
+        QPX_CONVERT(
+            MS1_LABELED_WORKFLOW.out.consensus,
+            CREATE_INPUT_CHANNEL.out.source_sdrf,
+            GENERATE_DECOY_DATABASE.out.database
         )
 
         if (params.enable_pmultiqc.toString().toBoolean()) {
-            ch_report_inputs = QPX_ENRICH.out.qpx.flatMap {
+            ch_report_inputs = QPX_CONVERT.out.qpx.flatMap {
                 directory -> files("${directory}/*.parquet", checkIfExists: true)
             }
             .mix(CREATE_INPUT_CHANNEL.out.source_sdrf)
